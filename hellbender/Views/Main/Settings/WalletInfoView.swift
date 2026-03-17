@@ -629,6 +629,14 @@ private struct EditCosignersView: View {
   private func handleScanResult(_ result: AppURResult) {
     switch result {
     case .hdKey(var xpub, let fingerprint, let derivationPath):
+      // Validate derivation path network before accepting the scan
+      if !derivationPath.isEmpty {
+        if let error = SetupWizardViewModel.validateDerivationPath(derivationPath, for: wallet.bitcoinNetwork) {
+          validationError = error
+          return
+        }
+      }
+
       let isTestnet = wallet.bitcoinNetwork != .mainnet
       if let normalized = URService.normalizeXpub(xpub, isTestnet: isTestnet) {
         xpub = normalized
@@ -656,6 +664,10 @@ private struct EditCosignersView: View {
       }
       if cosigner.fingerprint.count != 8 || !cosigner.fingerprint.allSatisfy(\.isHexDigit) {
         validationError = "Cosigner \(i + 1) has an invalid fingerprint"
+        return
+      }
+      if let error = SetupWizardViewModel.validateDerivationPath(cosigner.derivationPath, for: wallet.bitcoinNetwork) {
+        validationError = "Cosigner \(i + 1): \(error)"
         return
       }
     }

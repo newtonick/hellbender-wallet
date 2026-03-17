@@ -129,6 +129,29 @@ final class SetupWizardViewModel {
     return nil
   }
 
+  func validateDerivationPath(_ path: String) -> String? {
+    SetupWizardViewModel.validateDerivationPath(path, for: network)
+  }
+
+  static func validateDerivationPath(_ path: String, for network: BitcoinNetwork) -> String? {
+    let bip48Pattern = #"^m/48'/[01]'/\d+'/2'$"#
+    guard path.range(of: bip48Pattern, options: .regularExpression) != nil else {
+      return "Invalid derivation path. Expected BIP48 format: \(Constants.derivationPath(for: network))"
+    }
+    // components: ["m", "48'", "<coinType>'", "<account>'", "2'"]
+    let components = path.split(separator: "/")
+    guard components.count == 5 else {
+      return "Invalid derivation path structure"
+    }
+    let coinTypeComponent = String(components[2]) // e.g. "0'" or "1'"
+    let expectedCoinType = "\(network.coinType)'"
+    if coinTypeComponent != expectedCoinType {
+      let pathNetwork = coinTypeComponent == "0'" ? "mainnet" : "testnet/signet"
+      return "Derivation path coin type is for \(pathNetwork) but wallet network is \(network.displayName). Expected \(Constants.derivationPath(for: network))."
+    }
+    return nil
+  }
+
   func validateFingerprint(_ fp: String) -> String? {
     if fp.isEmpty { return "Fingerprint is required" }
     if fp.count != 8 { return "Fingerprint must be 8 hex characters" }

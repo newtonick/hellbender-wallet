@@ -134,6 +134,13 @@ final class BitcoinService {
         network: network,
         persister: persister
       )
+      // Reveal address #0 for both keychains so incremental syncs always cover it.
+      // Without this, startSyncWithRevealedSpks() has nothing to sync against on a
+      // brand-new wallet, and any funds sent to the first receive address are missed.
+      _ = w.revealNextAddress(keychain: .external)
+      _ = w.revealNextAddress(keychain: .internal)
+      _ = try w.persist(persister: persister)
+      addToLog("Revealed address #0 for external and internal keychains")
     }
 
     // Full scan only if last full scan was over 1 hour ago (or never)

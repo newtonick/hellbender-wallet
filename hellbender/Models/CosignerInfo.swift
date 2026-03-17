@@ -40,7 +40,6 @@ final class CosignerInfo {
   /// Validates derivation path matches BIP48 format
   var isValidDerivationPath: Bool {
     let pattern = #"^m/48'/[01]'/\d+'/2'$"#
-    return fingerprint.range(of: pattern, options: .regularExpression) != nil
-      || derivationPath.range(of: pattern, options: .regularExpression) != nil
+    return derivationPath.range(of: pattern, options: .regularExpression) != nil
   }
 }

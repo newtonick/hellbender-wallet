@@ -200,6 +200,10 @@ struct CosignerImportView: View {
       validationError = error
       return
     }
+    if let error = viewModel.validateDerivationPath(viewModel.cosignerDerivationPaths[idx]) {
+      validationError = error
+      return
+    }
 
     validationError = nil
 
@@ -214,6 +218,14 @@ struct CosignerImportView: View {
     switch result {
     case .hdKey(var xpub, let fingerprint, let derivationPath):
       let idx = viewModel.currentCosignerIndex
+
+      // Validate derivation path network before accepting the scan
+      if !derivationPath.isEmpty {
+        if let error = viewModel.validateDerivationPath(derivationPath) {
+          validationError = error
+          return
+        }
+      }
 
       // Auto-convert any xpub/tpub/Zpub/Vpub to the standard format for the network
       let isTestnet = viewModel.network != .mainnet

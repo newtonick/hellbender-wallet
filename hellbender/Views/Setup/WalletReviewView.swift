@@ -3,7 +3,6 @@ import SwiftUI
 struct WalletReviewView: View {
   @Bindable var viewModel: SetupWizardViewModel
   let onComplete: () -> Void
-  @State private var showConfirmation = false
   @State private var showDescriptorPDF = false
 
   var body: some View {
@@ -59,20 +58,6 @@ struct WalletReviewView: View {
         .hbCard()
         .padding(.horizontal, 24)
 
-        // Descriptor preview
-        VStack(alignment: .leading, spacing: 8) {
-          Text("External Descriptor")
-            .font(.hbLabel())
-            .foregroundStyle(Color.hbTextSecondary)
-
-          Text(viewModel.externalDescriptor)
-            .font(.hbMono(9))
-            .foregroundStyle(Color.hbTextPrimary)
-            .lineLimit(4)
-        }
-        .hbCard()
-        .padding(.horizontal, 24)
-
         // Descriptor PDF
         Button(action: { showDescriptorPDF = true }) {
           HStack(spacing: 8) {
@@ -89,7 +74,7 @@ struct WalletReviewView: View {
         .padding(.horizontal, 24)
 
         // Create button
-        Button(action: { showConfirmation = true }) {
+        Button(action: onComplete) {
           Text("Create Wallet")
             .hbPrimaryButton()
         }
@@ -109,12 +94,6 @@ struct WalletReviewView: View {
         walletName: viewModel.walletName.isEmpty ? "My Wallet" : viewModel.walletName,
         descriptor: viewModel.externalDescriptor
       )
-    }
-    .alert("Create Wallet?", isPresented: $showConfirmation) {
-      Button("Create", role: .none) { onComplete() }
-      Button("Cancel", role: .cancel) {}
-    } message: {
-      Text("This will create a \(viewModel.requiredSignatures)-of-\(viewModel.totalCosigners) multisig wallet on \(viewModel.network.displayName).")
     }
   }
 }

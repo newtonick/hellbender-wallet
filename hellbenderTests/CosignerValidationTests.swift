@@ -81,6 +81,51 @@ struct CosignerValidationTests {
     #expect(error != nil)
   }
 
+  // MARK: - Derivation Path Network Validation
+
+  @Test func validTestnetDerivationPath() {
+    let vm = SetupWizardViewModel()
+    vm.network = .testnet4
+    #expect(vm.validateDerivationPath("m/48'/1'/0'/2'") == nil)
+  }
+
+  @Test func validMainnetDerivationPath() {
+    let vm = SetupWizardViewModel()
+    vm.network = .mainnet
+    #expect(vm.validateDerivationPath("m/48'/0'/0'/2'") == nil)
+  }
+
+  @Test func rejectTestnetPathOnMainnet() {
+    let vm = SetupWizardViewModel()
+    vm.network = .mainnet
+    let error = vm.validateDerivationPath("m/48'/1'/0'/2'")
+    #expect(error != nil)
+    #expect(error?.contains("testnet") == true)
+    #expect(error?.contains("mainnet") == true)
+  }
+
+  @Test func rejectMainnetPathOnTestnet() {
+    let vm = SetupWizardViewModel()
+    vm.network = .testnet4
+    let error = vm.validateDerivationPath("m/48'/0'/0'/2'")
+    #expect(error != nil)
+    #expect(error?.contains("mainnet") == true)
+    #expect(error?.contains("testnet") == true)
+  }
+
+  @Test func rejectInvalidBIP48Format() {
+    let vm = SetupWizardViewModel()
+    vm.network = .testnet4
+    // Wrong script type
+    #expect(vm.validateDerivationPath("m/48'/1'/0'/1'") != nil)
+    // Missing hardened
+    #expect(vm.validateDerivationPath("m/48/1/0/2") != nil)
+    // Wrong purpose
+    #expect(vm.validateDerivationPath("m/44'/1'/0'/2'") != nil)
+    // Empty
+    #expect(vm.validateDerivationPath("") != nil)
+  }
+
   @Test func cosignerInfoValidation() {
     let valid = CosignerInfo(
       label: "Test",

@@ -1,0 +1,41 @@
+{
+    "cosigners": [
+        {
+            "label": "Coldcard #1",
+            "fingerprint": "73c5da0a",
+            "xpub": "tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ",
+            "derivationPath": "m/48'/1'/0'/2'",
+            "network": "testnet4"
+        },
+        {
+            "label": "Coldcard #2",
+            "fingerprint": "f3ab64d8",
+            "xpub": "tpubDFcMWLJTavzfRa3Rc5i3bTMGBW7kYBLhLMJpLGSEik5pVhN5SMNKyVXHEB3Wnz6haXBMLF5MUiGMrawKaYFoZhBFNnEv7XEiv3FtGkBLtEHj",
+            "derivationPath": "m/48'/1'/0'/2'",
+            "network": "testnet4"
+        },
+        {
+            "label": "SeedSigner",
+            "fingerprint": "c0b5ce41",
+            "xpub": "tpubDEmRJGMra7j5TnqBb4F8d43geT8sNXkWBzJbAjWz5n3Bm4EJ4CjxqwT2BqNNyVmGdXmMsBafF4vaVhEsEwNeXCxRN1mvPuDJCxPPBkpcjwY",
+            "derivationPath": "m/48'/1'/0'/2'",
+            "network": "testnet4"
+        }
+    ],
+    "invalid_xpubs": [
+        {
+            "xpub": "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
+            "reason": "Mainnet xpub used on testnet",
+            "network": "testnet4"
+        },
+        {
+            "xpub": "invalidxpubstring",
+            "reason": "Invalid format"
+        }
+    ],
+    "invalid_fingerprints": [
+        {"fingerprint": "73c5da", "reason": "Too short (6 chars)"},
+        {"fingerprint": "73c5da0a1b", "reason": "Too long (10 chars)"},
+        {"fingerprint": "73c5dazz", "reason": "Non-hex characters"}
+    ]
+}

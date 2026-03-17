@@ -1,0 +1,49 @@
+import Foundation
+
+/// Protocol abstracting BitcoinService for dependency injection and testing
+protocol BitcoinServiceProtocol {
+  // Properties used by ViewModels
+  var utxos: [UTXOItem] { get }
+  var currentNetwork: BitcoinNetwork? { get }
+  var requiredSignatures: Int { get }
+
+  /// PSBT operations
+  func createPSBT(
+    recipients: [(address: String, amount: UInt64, isSendMax: Bool)],
+    feeRate: UInt64,
+    utxos: [(txid: String, vout: UInt32)]?
+  ) async throws -> BitcoinService.PSBTResult
+
+  func createBumpFeePSBT(txid: String, feeRate: UInt64) async throws -> BitcoinService.PSBTResult
+
+  func combinePSBTs(original: Data, signed: Data) async throws -> (String, Data)
+
+  /// Finalize a PSBT and return the serialized transaction bytes
+  func finalizePSBTBytes(_ psbtData: Data) throws -> Data
+
+  func broadcastPSBT(_ psbtData: Data) async throws -> String
+
+  /// Extract input outpoints ("txid:vout") from PSBT bytes
+  func psbtInputOutpoints(_ psbtData: Data) -> [String]
+
+  /// Analyze PSBT to determine which cosigners have signed
+  func psbtSignerInfo(_ psbtData: Data) -> BitcoinService.PSBTSignerInfo?
+
+  /// Validate and parse an imported PSBT
+  func validateAndParseImportedPSBT(_ psbtData: Data, frozenOutpoints: Set<String>) throws -> BitcoinService.PSBTImportResult
+
+  /// Fee estimation
+  func getFeeRates() async throws -> BitcoinService.RecommendedFees
+
+  /// Sync
+  func sync() async throws
+}
+
+// MARK: - BitcoinService Conformance
+
+extension BitcoinService: BitcoinServiceProtocol {
+  func finalizePSBTBytes(_ psbtData: Data) throws -> Data {
+    let (_, tx) = try finalizePSBT(psbtData)
+    return Data(tx.serialize())
+  }
+}

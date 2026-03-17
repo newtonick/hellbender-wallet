@@ -1,0 +1,35 @@
+*.DS_Store
+CLAUDE.md
+CLAUDE_PLAN.md
+.claude/
+.agents/
+skills-lock.json
+
+## User settings
+.xcuserdata/
+xcuserdata/
+
+## Obj-C/Swift specific
+*.hmap
+
+## App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.swiftpm/
+
+# Carthage
+Carthage/Build/
+
+# CocoaPods
+Pods/
+
+# Xcode temporary build files
+build/
+DerivedData/

@@ -1,0 +1,650 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3C08EDBF2F5E3A8000C2268E /* BitcoinDevKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000200000000000000D0 /* BitcoinDevKit */; };
+		3C08EDC02F5E3A8000C2268E /* URKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000500000000000000D0 /* URKit */; };
+		3C08EDC12F5E3A8000C2268E /* URUI in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000800000000000000D0 /* URUI */; };
+		AA0000B100000000000000D0 /* Bbqr in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000B000000000000000D0 /* Bbqr */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3C9ACE352F5DED95009B00D0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3C9ACE1C2F5DED94009B00D0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C9ACE232F5DED94009B00D0;
+			remoteInfo = hellbender;
+		};
+		3C9ACE3F2F5DED95009B00D0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3C9ACE1C2F5DED94009B00D0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C9ACE232F5DED94009B00D0;
+			remoteInfo = hellbender;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		3C9ACE242F5DED94009B00D0 /* hellbender.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hellbender.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C9ACE342F5DED95009B00D0 /* hellbenderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hellbenderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C9ACE3E2F5DED95009B00D0 /* hellbenderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hellbenderUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3C9ACE262F5DED94009B00D0 /* hellbender */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = hellbender;
+			sourceTree = "<group>";
+		};
+		3C9ACE372F5DED95009B00D0 /* hellbenderTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = hellbenderTests;
+			sourceTree = "<group>";
+		};
+		3C9ACE412F5DED95009B00D0 /* hellbenderUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = hellbenderUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3C9ACE212F5DED94009B00D0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C08EDC12F5E3A8000C2268E /* URUI in Frameworks */,
+				3C08EDC02F5E3A8000C2268E /* URKit in Frameworks */,
+				3C08EDBF2F5E3A8000C2268E /* BitcoinDevKit in Frameworks */,
+				AA0000B100000000000000D0 /* Bbqr in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C9ACE312F5DED95009B00D0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C9ACE3B2F5DED95009B00D0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3C9ACE1B2F5DED94009B00D0 = {
+			isa = PBXGroup;
+			children = (
+				3C9ACE262F5DED94009B00D0 /* hellbender */,
+				3C9ACE372F5DED95009B00D0 /* hellbenderTests */,
+				3C9ACE412F5DED95009B00D0 /* hellbenderUITests */,
+				3C9ACE252F5DED94009B00D0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		3C9ACE252F5DED94009B00D0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3C9ACE242F5DED94009B00D0 /* hellbender.app */,
+				3C9ACE342F5DED95009B00D0 /* hellbenderTests.xctest */,
+				3C9ACE3E2F5DED95009B00D0 /* hellbenderUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3C9ACE232F5DED94009B00D0 /* hellbender */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C9ACE482F5DED95009B00D0 /* Build configuration list for PBXNativeTarget "hellbender" */;
+			buildPhases = (
+				3C9ACE202F5DED94009B00D0 /* Sources */,
+				3C9ACE212F5DED94009B00D0 /* Frameworks */,
+				3C9ACE222F5DED94009B00D0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3C9ACE262F5DED94009B00D0 /* hellbender */,
+			);
+			name = hellbender;
+			packageProductDependencies = (
+				AA00000200000000000000D0 /* BitcoinDevKit */,
+				AA00000500000000000000D0 /* URKit */,
+				AA00000800000000000000D0 /* URUI */,
+				AA0000B000000000000000D0 /* Bbqr */,
+			);
+			productName = hellbender;
+			productReference = 3C9ACE242F5DED94009B00D0 /* hellbender.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3C9ACE332F5DED95009B00D0 /* hellbenderTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C9ACE4B2F5DED95009B00D0 /* Build configuration list for PBXNativeTarget "hellbenderTests" */;
+			buildPhases = (
+				3C9ACE302F5DED95009B00D0 /* Sources */,
+				3C9ACE312F5DED95009B00D0 /* Frameworks */,
+				3C9ACE322F5DED95009B00D0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3C9ACE362F5DED95009B00D0 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3C9ACE372F5DED95009B00D0 /* hellbenderTests */,
+			);
+			name = hellbenderTests;
+			packageProductDependencies = (
+			);
+			productName = hellbenderTests;
+			productReference = 3C9ACE342F5DED95009B00D0 /* hellbenderTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		3C9ACE3D2F5DED95009B00D0 /* hellbenderUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C9ACE4E2F5DED95009B00D0 /* Build configuration list for PBXNativeTarget "hellbenderUITests" */;
+			buildPhases = (
+				3C9ACE3A2F5DED95009B00D0 /* Sources */,
+				3C9ACE3B2F5DED95009B00D0 /* Frameworks */,
+				3C9ACE3C2F5DED95009B00D0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3C9ACE402F5DED95009B00D0 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3C9ACE412F5DED95009B00D0 /* hellbenderUITests */,
+			);
+			name = hellbenderUITests;
+			packageProductDependencies = (
+			);
+			productName = hellbenderUITests;
+			productReference = 3C9ACE3E2F5DED95009B00D0 /* hellbenderUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3C9ACE1C2F5DED94009B00D0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					3C9ACE232F5DED94009B00D0 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					3C9ACE332F5DED95009B00D0 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 3C9ACE232F5DED94009B00D0;
+					};
+					3C9ACE3D2F5DED95009B00D0 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 3C9ACE232F5DED94009B00D0;
+					};
+				};
+			};
+			buildConfigurationList = 3C9ACE1F2F5DED94009B00D0 /* Build configuration list for PBXProject "hellbender" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 3C9ACE1B2F5DED94009B00D0;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA00000100000000000000D0 /* XCRemoteSwiftPackageReference "bdk-swift" */,
+				AA00000400000000000000D0 /* XCRemoteSwiftPackageReference "URKit" */,
+				AA00000700000000000000D0 /* XCRemoteSwiftPackageReference "URUI" */,
+				AA0000A000000000000000D0 /* XCRemoteSwiftPackageReference "bbqr-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3C9ACE252F5DED94009B00D0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3C9ACE232F5DED94009B00D0 /* hellbender */,
+				3C9ACE332F5DED95009B00D0 /* hellbenderTests */,
+				3C9ACE3D2F5DED95009B00D0 /* hellbenderUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3C9ACE222F5DED94009B00D0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C9ACE322F5DED95009B00D0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C9ACE3C2F5DED95009B00D0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3C9ACE202F5DED94009B00D0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C9ACE302F5DED95009B00D0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C9ACE3A2F5DED95009B00D0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3C9ACE362F5DED95009B00D0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C9ACE232F5DED94009B00D0 /* hellbender */;
+			targetProxy = 3C9ACE352F5DED95009B00D0 /* PBXContainerItemProxy */;
+		};
+		3C9ACE402F5DED95009B00D0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C9ACE232F5DED94009B00D0 /* hellbender */;
+			targetProxy = 3C9ACE3F2F5DED95009B00D0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		3C9ACE462F5DED95009B00D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = ZW85AH743B;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		3C9ACE472F5DED95009B00D0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ZW85AH743B;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		3C9ACE492F5DED95009B00D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_ASSET_PATHS = "\"hellbender/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hellbender;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Hellbender needs camera access to scan QR codes for importing cosigner keys and signed PSBTs from hardware wallets.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Hellbender uses Face ID to securely unlock your wallet.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.klockenga.Hellbender;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3C9ACE4A2F5DED95009B00D0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_ASSET_PATHS = "\"hellbender/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hellbender;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Hellbender needs camera access to scan QR codes for importing cosigner keys and signed PSBTs from hardware wallets.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Hellbender uses Face ID to securely unlock your wallet.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.klockenga.Hellbender;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		3C9ACE4C2F5DED95009B00D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.klockenga.hellbenderTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hellbender.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hellbender";
+			};
+			name = Debug;
+		};
+		3C9ACE4D2F5DED95009B00D0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.klockenga.hellbenderTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/hellbender.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/hellbender";
+			};
+			name = Release;
+		};
+		3C9ACE4F2F5DED95009B00D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.klockenga.hellbenderUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = hellbender;
+			};
+			name = Debug;
+		};
+		3C9ACE502F5DED95009B00D0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.klockenga.hellbenderUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = hellbender;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3C9ACE1F2F5DED94009B00D0 /* Build configuration list for PBXProject "hellbender" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C9ACE462F5DED95009B00D0 /* Debug */,
+				3C9ACE472F5DED95009B00D0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3C9ACE482F5DED95009B00D0 /* Build configuration list for PBXNativeTarget "hellbender" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C9ACE492F5DED95009B00D0 /* Debug */,
+				3C9ACE4A2F5DED95009B00D0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3C9ACE4B2F5DED95009B00D0 /* Build configuration list for PBXNativeTarget "hellbenderTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C9ACE4C2F5DED95009B00D0 /* Debug */,
+				3C9ACE4D2F5DED95009B00D0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3C9ACE4E2F5DED95009B00D0 /* Build configuration list for PBXNativeTarget "hellbenderUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3C9ACE4F2F5DED95009B00D0 /* Debug */,
+				3C9ACE502F5DED95009B00D0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AA00000100000000000000D0 /* XCRemoteSwiftPackageReference "bdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bitcoindevkit/bdk-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 2.3.1;
+			};
+		};
+		AA00000400000000000000D0 /* XCRemoteSwiftPackageReference "URKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/BlockchainCommons/URKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 15.0.0;
+			};
+		};
+		AA00000700000000000000D0 /* XCRemoteSwiftPackageReference "URUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/BlockchainCommons/URUI";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
+		AA0000A000000000000000D0 /* XCRemoteSwiftPackageReference "bbqr-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bitcoinppl/bbqr-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA00000200000000000000D0 /* BitcoinDevKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA00000100000000000000D0 /* XCRemoteSwiftPackageReference "bdk-swift" */;
+			productName = BitcoinDevKit;
+		};
+		AA00000500000000000000D0 /* URKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA00000400000000000000D0 /* XCRemoteSwiftPackageReference "URKit" */;
+			productName = URKit;
+		};
+		AA00000800000000000000D0 /* URUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA00000700000000000000D0 /* XCRemoteSwiftPackageReference "URUI" */;
+			productName = URUI;
+		};
+		AA0000B000000000000000D0 /* Bbqr */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000A000000000000000D0 /* XCRemoteSwiftPackageReference "bbqr-swift" */;
+			productName = Bbqr;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3C9ACE1C2F5DED94009B00D0 /* Project object */;
+}

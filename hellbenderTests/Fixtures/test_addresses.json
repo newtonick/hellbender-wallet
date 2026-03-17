@@ -1,0 +1,5 @@
+{
+    "descriptor": "wsh(sortedmulti(2,[73c5da0a/48'/1'/0'/2']tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/0/*,[f3ab64d8/48'/1'/0'/2']tpubDFcMWLJTavzfRa3Rc5i3bTMGBW7kYBLhLMJpLGSEik5pVhN5SMNKyVXHEB3Wnz6haXBMLF5MUiGMrawKaYFoZhBFNnEv7XEiv3FtGkBLtEHj/0/*,[c0b5ce41/48'/1'/0'/2']tpubDEmRJGMra7j5TnqBb4F8d43geT8sNXkWBzJbAjWz5n3Bm4EJ4CjxqwT2BqNNyVmGdXmMsBafF4vaVhEsEwNeXCxRN1mvPuDJCxPPBkpcjwY/0/*))",
+    "network": "testnet4",
+    "note": "Expected addresses would be derived at runtime using BDK - this fixture provides the descriptor for verification"
+}

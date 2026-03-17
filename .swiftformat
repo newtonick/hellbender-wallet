@@ -1,0 +1,16 @@
+# SwiftFormat Configuration
+# https://github.com/nicklockwood/SwiftFormat
+
+# Swift Version (Required for formatting modern syntax like macros and SwiftData correctly)
+--swiftversion 5.9
+
+# --- Indentation & Spacing ---
+# Standard 4 spaces for indentation
+--indent 2
+
+# Use Unix style line breaks
+--linebreaks lf
+
+# --- Exclusions ---
+# Exclude auto-generated and package manager directories
+--exclude **/Pods,**/.build,**/Package.swift,**/DerivedData

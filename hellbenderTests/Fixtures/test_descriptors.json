@@ -1,0 +1,35 @@
+{
+    "valid": [
+        {
+            "description": "2-of-3 testnet multisig",
+            "descriptor": "wsh(sortedmulti(2,[73c5da0a/48'/1'/0'/2']tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/0/*,[f3ab64d8/48'/1'/0'/2']tpubDFcMWLJTavzfRa3Rc5i3bTMGBW7kYBLhLMJpLGSEik5pVhN5SMNKyVXHEB3Wnz6haXBMLF5MUiGMrawKaYFoZhBFNnEv7XEiv3FtGkBLtEHj/0/*,[c0b5ce41/48'/1'/0'/2']tpubDEmRJGMra7j5TnqBb4F8d43geT8sNXkWBzJbAjWz5n3Bm4EJ4CjxqwT2BqNNyVmGdXmMsBafF4vaVhEsEwNeXCxRN1mvPuDJCxPPBkpcjwY/0/*))",
+            "requiredSignatures": 2,
+            "totalCosigners": 3,
+            "network": "testnet4"
+        },
+        {
+            "description": "2-of-2 mainnet multisig",
+            "descriptor": "wsh(sortedmulti(2,[a0b1c2d3/48'/0'/0'/2']xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz/0/*,[e4f5a6b7/48'/0'/0'/2']xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRhinstEgLbmAH4Su6Lq4jRGvS3ULm7tPGKXLSgR8PeK/0/*))",
+            "requiredSignatures": 2,
+            "totalCosigners": 2,
+            "network": "bitcoin"
+        }
+    ],
+    "invalid": [
+        {
+            "description": "M greater than N",
+            "descriptor": "wsh(sortedmulti(3,[73c5da0a/48'/1'/0'/2']tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/0/*,[f3ab64d8/48'/1'/0'/2']tpubDFcMWLJTavzfRa3Rc5i3bTMGBW7kYBLhLMJpLGSEik5pVhN5SMNKyVXHEB3Wnz6haXBMLF5MUiGMrawKaYFoZhBFNnEv7XEiv3FtGkBLtEHj/0/*))",
+            "reason": "M (3) exceeds N (2)"
+        },
+        {
+            "description": "Missing fingerprint",
+            "descriptor": "wsh(sortedmulti(2,[/48'/1'/0'/2']tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/0/*,[f3ab64d8/48'/1'/0'/2']tpubDFcMWLJTavzfRa3Rc5i3bTMGBW7kYBLhLMJpLGSEik5pVhN5SMNKyVXHEB3Wnz6haXBMLF5MUiGMrawKaYFoZhBFNnEv7XEiv3FtGkBLtEHj/0/*))",
+            "reason": "Missing master fingerprint"
+        },
+        {
+            "description": "Wrong script type - not wsh",
+            "descriptor": "sh(sortedmulti(2,[73c5da0a/48'/1'/0'/2']tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/0/*,[f3ab64d8/48'/1'/0'/2']tpubDFcMWLJTavzfRa3Rc5i3bTMGBW7kYBLhLMJpLGSEik5pVhN5SMNKyVXHEB3Wnz6haXBMLF5MUiGMrawKaYFoZhBFNnEv7XEiv3FtGkBLtEHj/0/*))",
+            "reason": "Not P2WSH format"
+        }
+    ]
+}

@@ -4,6 +4,7 @@ struct SendReviewView: View {
   @Bindable var viewModel: SendViewModel
   @AppStorage(Constants.denominationKey) private var denomination: String = "sats"
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
+  @State private var showExitConfirmation = false
 
   private var fiatService: FiatPriceService {
     FiatPriceService.shared
@@ -155,24 +156,45 @@ struct SendReviewView: View {
         Spacer().frame(height: 16)
 
         Button(action: {
-          if viewModel.savedPSBTId == nil {
-            viewModel.signaturesCollected = 0
+          if viewModel.needsMoreSignatures {
+            if viewModel.savedPSBTId == nil {
+              viewModel.signaturesCollected = 0
+            }
+            viewModel.currentStep = .psbtDisplay
+          } else {
+            viewModel.currentStep = .broadcast
           }
-          viewModel.currentStep = .psbtDisplay
         }) {
-          Text("Show QR for Signing")
+          Text(viewModel.needsMoreSignatures ? "Show QR for Signing" : "Broadcast Transaction")
             .hbPrimaryButton()
         }
         .padding(.horizontal, 24)
 
-        Button(action: { viewModel.currentStep = .recipients }) {
-          Text("Back")
+        Button(action: {
+          if viewModel.savedPSBTId != nil {
+            showExitConfirmation = true
+          } else {
+            viewModel.currentStep = .recipients
+          }
+        }) {
+          Text(viewModel.savedPSBTId != nil ? "Exit" : "Back")
             .font(.hbBody(16))
             .foregroundStyle(Color.hbTextSecondary)
         }
         .padding(.bottom, 32)
       }
       .padding(.top, 16)
+    }
+    .alert("Exit Signing?", isPresented: $showExitConfirmation) {
+      Button("Exit", role: .destructive) {
+        viewModel.currentStep = .recipients
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+          viewModel.reset()
+        }
+      }
+      Button("Continue Signing", role: .cancel) {}
+    } message: {
+      Text("Your PSBT has been saved. You can continue signing by loading it from the Send screen.")
     }
   }
 }

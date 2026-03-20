@@ -53,6 +53,29 @@ struct Recipient: Identifiable {
   }
 }
 
+enum FeePreset: CaseIterable {
+  case fast, medium, slow, custom
+
+  var displayName: String {
+    switch self {
+    case .fast: "Fast"
+    case .medium: "Medium"
+    case .slow: "Slow"
+    case .custom: "Custom"
+    }
+  }
+
+  func rate(from fees: BitcoinService.RecommendedFees?) -> Double? {
+    guard let fees else { return nil }
+    switch self {
+    case .fast: return fees.fast
+    case .medium: return fees.medium
+    case .slow: return fees.slow
+    case .custom: return nil
+    }
+  }
+}
+
 @Observable
 final class SendViewModel {
   enum Step: Int, CaseIterable {
@@ -70,7 +93,8 @@ final class SendViewModel {
   var recipients: [Recipient] = [Recipient()]
   var amountInFiat: Bool = false
   var fiatDisplayAmount: [UUID: String] = [:] // per-recipient fiat display strings
-  var feeRateSatVb: String = "1"
+  var feeRateSatVb: String = "" // empty until rates load
+  var selectedFeePreset: FeePreset = .medium
   var showAddressScanner: Bool = false
   var scanTargetRecipientIndex: Int = 0
   var recommendedFees: BitcoinService.RecommendedFees?
@@ -88,6 +112,7 @@ final class SendViewModel {
   var psbtBytes: Data = .init()
   var signaturesCollected: Int = 0
   var requiredSignatures: Int = 2
+  var totalCosigners: Int = 1
   var broadcastTxid: String = ""
   var finalizedTxBytes: Data = .init()
   var errorMessage: String?
@@ -152,13 +177,12 @@ final class SendViewModel {
     bitcoinService.currentNetwork
   }
 
-  var feeRateValue: UInt64 {
-    UInt64(feeRateSatVb) ?? 1
+  var feeRateValue: Double {
+    Double(feeRateSatVb) ?? 0
   }
 
   var isValidFeeRate: Bool {
-    guard let rate = UInt64(feeRateSatVb) else { return false }
-    return rate >= 1
+    feeRateValue > 0
   }
 
   var hasAnyInput: Bool {
@@ -251,6 +275,7 @@ final class SendViewModel {
   func loadBalance() {
     availableBalance = spendableUTXOs.reduce(0) { $0 + $1.amount }
     requiredSignatures = bitcoinService.requiredSignatures
+    totalCosigners = bitcoinService.totalCosigners
   }
 
   // MARK: - Fiat Toggle
@@ -382,10 +407,29 @@ final class SendViewModel {
       let rates = try await bitcoinService.getFeeRates()
       await MainActor.run {
         self.recommendedFees = rates
+        applyPreset(selectedFeePreset)
       }
     } catch {
       print("Failed to fetch fee rates: \(error)")
     }
+  }
+
+  func applyPreset(_ preset: FeePreset) {
+    selectedFeePreset = preset
+    if let rate = preset.rate(from: recommendedFees) {
+      feeRateSatVb = formatRate(rate)
+    }
+  }
+
+  private func formatRate(_ rate: Double) -> String {
+    var s = String(format: "%.2f", rate)
+    if s.contains(".") {
+      while s.hasSuffix("0") {
+        s.removeLast()
+      }
+      if s.hasSuffix(".") { s.removeLast() }
+    }
+    return s
   }
 
   /// Recalculate the max amount for whichever recipient has isSendMax
@@ -408,7 +452,11 @@ final class SendViewModel {
     }
   }
 
-  private func estimateFee() -> UInt64 {
+  func estimateFee() -> UInt64 {
+    estimatedFee(for: feeRateValue)
+  }
+
+  func estimatedFee(for rate: Double) -> UInt64 {
     // Rough estimate: P2WSH multisig input ~200 vbytes, output ~43 vbytes each, overhead ~10
     let inputCount: Int = if manualUTXOSelection {
       max(selectedUTXOIds.count, 1)
@@ -417,7 +465,7 @@ final class SendViewModel {
     }
     let outputCount = recipients.count + 1 // +1 for change
     let estimatedVbytes = UInt64(inputCount * 200 + outputCount * 43 + 10)
-    return estimatedVbytes * max(feeRateValue, 1)
+    return UInt64(Double(estimatedVbytes) * max(rate, 0.001))
   }
 
   /// Parse a BIP-21 URI or plain address string
@@ -477,20 +525,15 @@ final class SendViewModel {
          isSendMax: r.isSendMax)
       }
 
-      let utxoOutpoints: [(txid: String, vout: UInt32)]? = if manualUTXOSelection {
-        allUTXOs
-          .filter { selectedUTXOIds.contains($0.id) }
-          .map { (txid: $0.txid, vout: $0.vout) }
-      } else if !frozenOutpoints.isEmpty {
-        spendableUTXOs.map { (txid: $0.txid, vout: $0.vout) }
-      } else {
-        nil
-      }
+      let utxoOutpoints: [(txid: String, vout: UInt32)]? = manualUTXOSelection
+        ? allUTXOs.filter { selectedUTXOIds.contains($0.id) }.map { (txid: $0.txid, vout: $0.vout) }
+        : nil
 
       let result = try await bitcoinService.createPSBT(
         recipients: recipientList,
         feeRate: feeRateValue,
-        utxos: utxoOutpoints
+        utxos: utxoOutpoints,
+        unspendable: frozenOutpoints
       )
       psbtBase64 = result.base64
       psbtBytes = result.bytes
@@ -521,18 +564,12 @@ final class SendViewModel {
       return
     }
 
-    let utxoOutpoints: [(txid: String, vout: UInt32)]? = if manualUTXOSelection {
-      allUTXOs
-        .filter { selectedUTXOIds.contains($0.id) }
-        .map { (txid: $0.txid, vout: $0.vout) }
-    } else if !frozenOutpoints.isEmpty {
-      // Exclude frozen UTXOs from automatic selection
-      spendableUTXOs.map { (txid: $0.txid, vout: $0.vout) }
-    } else {
-      nil
-    }
+    let utxoOutpoints: [(txid: String, vout: UInt32)]? = manualUTXOSelection
+      ? allUTXOs.filter { selectedUTXOIds.contains($0.id) }.map { (txid: $0.txid, vout: $0.vout) }
+      : nil
 
-    // Guard: ensure no frozen UTXOs in the input set
+    // For manual selection, guard against spending a UTXO the user has frozen.
+    // (BDK lets addUtxos() override the unspendable list, so this stays at app layer.)
     if let validationError = validateUTXOInputs(outpoints: utxoOutpoints) {
       errorMessage = validationError
       return
@@ -543,7 +580,8 @@ final class SendViewModel {
       let result = try await bitcoinService.createPSBT(
         recipients: recipientList,
         feeRate: feeRateValue,
-        utxos: utxoOutpoints
+        utxos: utxoOutpoints,
+        unspendable: frozenOutpoints
       )
       psbtBase64 = result.base64
       psbtBytes = result.bytes
@@ -698,8 +736,8 @@ final class SendViewModel {
     if savedPSBTId != nil {
       // Always update an existing saved PSBT (e.g. after adding a signature)
       savePSBT(name: savedPSBTName.isEmpty ? defaultPSBTName() : savedPSBTName, context: context)
-    } else if requiredSignatures > 1 {
-      // Only auto-create new saves for multisig wallets
+    } else if totalCosigners > 1 {
+      // Auto-create for any multisig wallet (including 1-of-N where M=1 but N>1)
       savePSBT(name: defaultPSBTName(), context: context)
     }
   }
@@ -778,6 +816,7 @@ final class SendViewModel {
       psbtBytes = result.psbtBytes
       psbtBase64 = result.psbtBase64
       requiredSignatures = bitcoinService.requiredSignatures
+      totalCosigners = bitcoinService.totalCosigners
 
       // Determine signature status
       if let signerInfo = bitcoinService.psbtSignerInfo(result.psbtBytes) {
@@ -817,7 +856,8 @@ final class SendViewModel {
     recipients = [Recipient()]
     amountInFiat = false
     fiatDisplayAmount.removeAll()
-    feeRateSatVb = "1"
+    selectedFeePreset = .medium
+    applyPreset(.medium)
     psbtBase64 = ""
     psbtBytes = Data()
     totalFee = 0

@@ -9,6 +9,9 @@ struct UTXODetailView: View {
   @AppStorage(Constants.denominationKey) private var denomination: String = "sats"
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
   @AppStorage(Constants.fiatPrimaryKey) private var fiatPrimary = false
+  @State private var utxoLabel: String = ""
+  @State private var isEditingLabel = false
+  @State private var editedLabel: String = ""
 
   private var service: BitcoinService {
     BitcoinService.shared
@@ -153,6 +156,50 @@ struct UTXODetailView: View {
         }
         .hbCard()
 
+        // Label
+        VStack(alignment: .leading, spacing: 6) {
+          HStack {
+            Text("Label")
+              .font(.hbLabel())
+              .foregroundStyle(Color.hbTextSecondary)
+            Spacer()
+            if isEditingLabel {
+              Button(action: saveUTXOLabel) {
+                Image(systemName: "checkmark.circle.fill")
+                  .foregroundStyle(Color.hbSuccess)
+              }
+            } else {
+              Button(action: {
+                editedLabel = utxoLabel
+                isEditingLabel = true
+              }) {
+                Image(systemName: utxoLabel.isEmpty ? "plus.circle" : "pencil")
+                  .font(.system(size: 14))
+                  .foregroundStyle(Color.hbSteelBlue)
+              }
+            }
+          }
+          if isEditingLabel {
+            TextField("Add a label...", text: $editedLabel)
+              .font(.hbBody())
+              .padding(10)
+              .background(Color.hbSurfaceElevated)
+              .clipShape(RoundedRectangle(cornerRadius: 8))
+              .foregroundStyle(Color.hbTextPrimary)
+              .onSubmit { saveUTXOLabel() }
+          } else if !utxoLabel.isEmpty {
+            Text(utxoLabel)
+              .font(.hbBody())
+              .foregroundStyle(Color.hbTextPrimary)
+          } else {
+            Text("No label")
+              .font(.hbBody())
+              .foregroundStyle(Color.hbTextSecondary)
+              .italic()
+          }
+        }
+        .hbCard()
+
         // Outpoint
         VStack(alignment: .leading, spacing: 6) {
           Text("Outpoint")
@@ -207,6 +254,51 @@ struct UTXODetailView: View {
     }
     .background(Color.hbBackground)
     .navigationTitle("UTXO Detail")
+    .onAppear { loadUTXOLabel() }
+  }
+
+  private func loadUTXOLabel() {
+    guard let walletID = service.currentProfile?.id else { return }
+    let outpoint = utxo.id
+    let descriptor = FetchDescriptor<WalletLabel>(predicate: #Predicate {
+      $0.walletID == walletID && $0.type == "utxo" && $0.ref == outpoint
+    })
+    utxoLabel = (try? modelContext.fetch(descriptor))?.first?.label ?? ""
+  }
+
+  private func saveUTXOLabel() {
+    guard let walletID = service.currentProfile?.id else { return }
+    var trimmed = editedLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.utf8.count > WalletLabel.maxLabelLength {
+      trimmed = String(trimmed.utf8.prefix(WalletLabel.maxLabelLength))!
+    }
+    let outpoint = utxo.id
+    let descriptor = FetchDescriptor<WalletLabel>(predicate: #Predicate {
+      $0.walletID == walletID && $0.type == "utxo" && $0.ref == outpoint
+    })
+    let existing = (try? modelContext.fetch(descriptor))?.first
+    if trimmed.isEmpty {
+      if let existing { modelContext.delete(existing) }
+    } else if let existing {
+      existing.label = trimmed
+    } else {
+      modelContext.insert(WalletLabel(walletID: walletID, type: .utxo, ref: outpoint, label: trimmed))
+    }
+    try? modelContext.save()
+    utxoLabel = trimmed
+    isEditingLabel = false
+
+    // Propagate to receive address if unlabeled
+    if !trimmed.isEmpty, utxo.keychain == .external, let address = outputAddress {
+      let addrType = "addr"
+      let addrDescriptor = FetchDescriptor<WalletLabel>(predicate: #Predicate {
+        $0.walletID == walletID && $0.type == addrType && $0.ref == address
+      })
+      if (try? modelContext.fetch(addrDescriptor))?.first == nil {
+        modelContext.insert(WalletLabel(walletID: walletID, type: .addr, ref: address, label: trimmed))
+        try? modelContext.save()
+      }
+    }
   }
 
   private func addressLabel(for address: String) -> String? {

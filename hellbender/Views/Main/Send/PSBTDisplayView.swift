@@ -79,11 +79,16 @@ struct PSBTDisplayView: View {
         // QR Display — constrained to available height
         if !viewModel.psbtBytes.isEmpty {
           GeometryReader { geo in
+            // Re-read inside the closure: GeometryReader defers evaluation to layout
+            // time, so psbtBytes may have been cleared since the outer guard ran.
+            let bytes = viewModel.psbtBytes
             let maxSide = min(geo.size.width, geo.size.height)
             Group {
-              if qrEncoding == .ur {
+              if bytes.isEmpty {
+                EmptyView()
+              } else if qrEncoding == .ur {
                 URDisplaySheet(
-                  data: viewModel.psbtBytes,
+                  data: bytes,
                   urType: "crypto-psbt",
                   framesPerSecond: framesPerSecond,
                   maxFragmentLen: qrDensity.urFragmentLen
@@ -91,7 +96,7 @@ struct PSBTDisplayView: View {
                 .id(qrDensity.urFragmentLen)
               } else {
                 BBQRDisplayView(
-                  data: viewModel.psbtBytes,
+                  data: bytes,
                   fileType: .psbt,
                   framesPerSecond: framesPerSecond,
                   maxVersion: qrDensity.bbqrMaxVersion

@@ -1,4 +1,5 @@
 import AVFoundation
+import SwiftData
 import SwiftUI
 
 struct SendRecipientsView: View {
@@ -34,58 +35,9 @@ struct SendRecipientsView: View {
         }
         .disabled(!viewModel.canAddRecipient)
 
-        // Fee rate
-        VStack(spacing: 12) {
-          Text("Fee Rate")
-            .font(.hbLabel())
-            .foregroundStyle(Color.hbTextSecondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-          HStack(spacing: 8) {
-            let feeInvalid = viewModel.showValidationErrors && !viewModel.isValidFeeRate
-
-            TextField("1", text: $viewModel.feeRateSatVb)
-              .font(.hbMono(16))
-              .keyboardType(.numberPad)
-              .multilineTextAlignment(.center)
-              .onChange(of: viewModel.feeRateSatVb) { _, newValue in
-                let filtered = newValue.filter(\.isWholeNumber)
-                if filtered != newValue { viewModel.feeRateSatVb = filtered }
-              }
-              .frame(width: 80)
-              .padding(10)
-              .background(Color.hbSurfaceElevated)
-              .clipShape(RoundedRectangle(cornerRadius: 8))
-              .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                  .strokeBorder(feeInvalid ? Color.hbError.opacity(0.8) : .clear, lineWidth: 1.5)
-              )
-              .foregroundStyle(Color.hbTextPrimary)
-              .onChange(of: viewModel.feeRateSatVb) {
-                viewModel.recalculateMaxIfNeeded()
-              }
-
-            Text("sat/vB")
-              .font(.hbBody(14))
-              .foregroundStyle(Color.hbTextSecondary)
-          }
-
-          if viewModel.showValidationErrors, !viewModel.isValidFeeRate {
-            Text("Minimum 1 sat/vB")
-              .font(.hbLabel(11))
-              .foregroundStyle(Color.hbError)
-          }
-
-          if let rates = viewModel.recommendedFees {
-            let highRate = String(format: "%.1f", rates.fastest).replacingOccurrences(of: ".0", with: "")
-            Text("High Priority Fee Estimate: \(highRate) sat/vB")
-              .font(.hbBody(13))
-              .foregroundStyle(Color.hbTextSecondary)
-          }
-        }
-        .frame(maxWidth: .infinity)
-        .hbCard()
-        .padding(.horizontal, 24)
+        // Fee preset picker
+        FeePresetCard(viewModel: viewModel)
+          .padding(.horizontal, 24)
 
         // UTXO selection
         UTXOSelectionCard(viewModel: viewModel)
@@ -376,6 +328,176 @@ private struct RecipientCard: View {
   }
 }
 
+// MARK: - Fee Preset Picker
+
+private struct FeePresetCard: View {
+  @Bindable var viewModel: SendViewModel
+  @State private var showFeeMenu = false
+
+  private func rateDisplay(_ rate: Double) -> String {
+    var s = String(format: "%.2f", rate)
+    if s.contains(".") {
+      while s.hasSuffix("0") {
+        s.removeLast()
+      }
+      if s.hasSuffix(".") { s.removeLast() }
+    }
+    return s
+  }
+
+  private var currentRateText: String {
+    viewModel.feeRateValue > 0 ? rateDisplay(viewModel.feeRateValue) + " sat/vB" : "--"
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      // Header — tap anywhere to expand/collapse
+      HStack(spacing: 8) {
+        Text("Fee")
+          .font(.hbLabel())
+          .foregroundStyle(Color.hbTextSecondary)
+
+        if viewModel.totalSendAmount > 0 {
+          Text("~\(viewModel.estimateFee().formattedSats)")
+            .font(.hbLabel())
+            .foregroundStyle(Color.hbTextSecondary)
+        }
+
+        Spacer()
+
+        // Current rate in white
+        Text(currentRateText)
+          .font(.hbMono(14))
+          .foregroundStyle(Color.hbTextPrimary)
+
+        // Speed label + directional arrow (left = closed, down = open)
+        HStack(spacing: 4) {
+          Text(viewModel.selectedFeePreset.displayName)
+            .font(.hbBody(14))
+            .foregroundStyle(Color.hbBitcoinOrange)
+          Image(systemName: showFeeMenu ? "chevron.down" : "chevron.left")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(Color.hbBitcoinOrange)
+        }
+      }
+      .contentShape(Rectangle())
+      .onTapGesture {
+        withAnimation(.easeInOut(duration: 0.2)) { showFeeMenu.toggle() }
+      }
+
+      if showFeeMenu {
+        Divider()
+          .background(Color.hbBorder)
+
+        VStack(spacing: 10) {
+          ForEach(FeePreset.allCases, id: \.self) { preset in
+            if preset == .custom {
+              customRow
+            } else {
+              presetRow(preset)
+            }
+          }
+        }
+      }
+
+      if viewModel.showValidationErrors, !viewModel.isValidFeeRate {
+        Text("Enter a fee rate greater than 0")
+          .font(.hbLabel(11))
+          .foregroundStyle(Color.hbError)
+      }
+    }
+    .hbCard()
+  }
+
+  private func presetRow(_ preset: FeePreset) -> some View {
+    Button(action: {
+      viewModel.applyPreset(preset)
+      withAnimation(.easeInOut(duration: 0.2)) { showFeeMenu = false }
+    }) {
+      HStack(spacing: 10) {
+        Image(systemName: viewModel.selectedFeePreset == preset ? "checkmark.circle.fill" : "circle")
+          .font(.system(size: 18))
+          .foregroundStyle(viewModel.selectedFeePreset == preset ? Color.hbBitcoinOrange : Color.hbBorder)
+
+        Text(preset.displayName)
+          .font(.hbBody(14))
+          .foregroundStyle(Color.hbTextPrimary)
+
+        Spacer()
+
+        if let rate = preset.rate(from: viewModel.recommendedFees) {
+          Text(rateDisplay(rate) + " sat/vB")
+            .font(.hbMono(13))
+            .foregroundStyle(Color.hbTextPrimary)
+        } else {
+          Text("-- sat/vB")
+            .font(.hbMono(13))
+            .foregroundStyle(Color.hbTextPrimary)
+        }
+      }
+      .frame(minHeight: 44)
+    }
+    .buttonStyle(.plain)
+  }
+
+  private var customRow: some View {
+    HStack(spacing: 10) {
+      Image(systemName: viewModel.selectedFeePreset == .custom ? "checkmark.circle.fill" : "circle")
+        .font(.system(size: 18))
+        .foregroundStyle(viewModel.selectedFeePreset == .custom ? Color.hbBitcoinOrange : Color.hbBorder)
+        .onTapGesture { viewModel.selectedFeePreset = .custom }
+
+      Text(FeePreset.custom.displayName)
+        .font(.hbBody(14))
+        .foregroundStyle(Color.hbTextPrimary)
+        .onTapGesture { viewModel.selectedFeePreset = .custom }
+
+      Spacer()
+
+      TextField("0.0", text: $viewModel.feeRateSatVb)
+        .font(.hbMono(14))
+        .keyboardType(.decimalPad)
+        .multilineTextAlignment(.trailing)
+        .frame(width: 60)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.hbSurfaceElevated)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+          RoundedRectangle(cornerRadius: 6)
+            .strokeBorder(
+              viewModel.selectedFeePreset == .custom && viewModel.showValidationErrors && !viewModel.isValidFeeRate
+                ? Color.hbError.opacity(0.8) : .clear,
+              lineWidth: 1.5
+            )
+        )
+        .onChange(of: viewModel.feeRateSatVb) { _, newValue in
+          var filtered = newValue.filter { $0.isNumber || $0 == "." }
+          if let dotIdx = filtered.firstIndex(of: ".") {
+            let afterDot = filtered[filtered.index(after: dotIdx)...]
+            filtered = String(filtered[...dotIdx]) + afterDot.filter { $0 != "." }
+          }
+          if filtered != newValue { viewModel.feeRateSatVb = filtered }
+          // Only switch to .custom when the value wasn't set by applyPreset
+          if let rate = viewModel.selectedFeePreset.rate(from: viewModel.recommendedFees),
+             viewModel.feeRateSatVb == rateDisplay(rate)
+          {
+            // Value matches the selected preset — applyPreset wrote this, leave preset as-is
+          } else {
+            viewModel.selectedFeePreset = .custom
+          }
+          viewModel.recalculateMaxIfNeeded()
+        }
+        .onTapGesture { viewModel.selectedFeePreset = .custom }
+
+      Text("sat/vB")
+        .font(.hbBody(13))
+        .foregroundStyle(Color.hbTextSecondary)
+    }
+    .frame(minHeight: 44)
+  }
+}
+
 // MARK: - UTXO Selection
 
 private struct UTXOSelectionCard: View {
@@ -430,6 +552,12 @@ private struct UTXOSelectionCard: View {
 struct UTXOPickerSheet: View {
   @Bindable var viewModel: SendViewModel
   @Environment(\.dismiss) private var dismiss
+  @Query private var walletLabels: [WalletLabel]
+
+  private func utxoLabel(for utxo: UTXOItem) -> String? {
+    guard let walletID = BitcoinService.shared.currentProfile?.id else { return nil }
+    return walletLabels.first(where: { $0.walletID == walletID && $0.type == "utxo" && $0.ref == utxo.id })?.label
+  }
 
   var body: some View {
     NavigationStack {
@@ -442,13 +570,14 @@ struct UTXOPickerSheet: View {
               UTXOPickerRow(
                 utxo: utxo,
                 isSelected: viewModel.selectedUTXOIds.contains(utxo.id),
+                label: utxoLabel(for: utxo),
                 onToggle: { viewModel.toggleUTXOSelection(utxo.id) }
               )
             }
 
             if !viewModel.frozenUTXOs.isEmpty {
               ForEach(viewModel.frozenUTXOs) { utxo in
-                FrozenUTXOPickerRow(utxo: utxo)
+                FrozenUTXOPickerRow(utxo: utxo, label: utxoLabel(for: utxo))
               }
             }
 
@@ -503,6 +632,7 @@ struct UTXOPickerSheet: View {
 private struct UTXOPickerRow: View {
   let utxo: UTXOItem
   let isSelected: Bool
+  let label: String?
   let onToggle: () -> Void
 
   var body: some View {
@@ -520,6 +650,17 @@ private struct UTXOPickerRow: View {
           Text("\(String(utxo.txid.prefix(12)))...:\(utxo.vout)")
             .font(.hbMono(11))
             .foregroundStyle(Color.hbTextSecondary)
+
+          if let label, !label.isEmpty {
+            HStack(spacing: 4) {
+              Image(systemName: "tag.fill")
+                .font(.system(size: 9))
+              Text(label)
+                .font(.hbBody(11))
+                .lineLimit(1)
+            }
+            .foregroundStyle(Color.hbSteelBlue)
+          }
         }
 
         Spacer()
@@ -528,7 +669,7 @@ private struct UTXOPickerRow: View {
           Circle()
             .fill(utxo.isConfirmed ? Color.hbSuccess : Color.hbBitcoinOrange)
             .frame(width: 6, height: 6)
-          Text(utxo.isConfirmed ? "Confirmed" : "Pending")
+          Text(utxo.isConfirmed ? "Confirmed" : "Unconfirmed")
             .font(.hbLabel(10))
             .foregroundStyle(Color.hbTextSecondary)
         }
@@ -543,6 +684,7 @@ private struct UTXOPickerRow: View {
 
 private struct FrozenUTXOPickerRow: View {
   let utxo: UTXOItem
+  let label: String?
 
   var body: some View {
     HStack(spacing: 12) {
@@ -558,6 +700,17 @@ private struct FrozenUTXOPickerRow: View {
         Text("\(String(utxo.txid.prefix(12)))...:\(utxo.vout)")
           .font(.hbMono(11))
           .foregroundStyle(Color.hbTextSecondary)
+
+        if let label, !label.isEmpty {
+          HStack(spacing: 4) {
+            Image(systemName: "tag.fill")
+              .font(.system(size: 9))
+            Text(label)
+              .font(.hbBody(11))
+              .lineLimit(1)
+          }
+          .foregroundStyle(Color.hbSteelBlue)
+        }
       }
 
       Spacer()

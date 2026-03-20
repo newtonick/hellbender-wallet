@@ -1,6 +1,20 @@
 import Foundation
 import Observation
 
+enum FiatSource: String, CaseIterable {
+  case zeus
+  case mempoolSpace = "mempool"
+  case coinGecko = "coingecko"
+
+  var displayName: String {
+    switch self {
+    case .zeus: "Zeus"
+    case .mempoolSpace: "mempool.space"
+    case .coinGecko: "CoinGecko"
+    }
+  }
+}
+
 @Observable
 final class FiatPriceService {
   static let shared = FiatPriceService()
@@ -9,9 +23,15 @@ final class FiatPriceService {
   private(set) var lastFetched: Date?
   private(set) var isFetching = false
 
-  private let apiURL = "https://pay.zeusln.app/api/rates?storeId=Fjt7gLnGpg4UeBMFccLquy3GTTEz4cHU4PZMU63zqMBo"
-  private let refreshInterval: TimeInterval = 60 // refresh from API if older than 60s
-  private let maxCacheAge: TimeInterval = 6 * 3600 // cache valid for up to 6 hours
+  private let zeusURL = "https://pay.zeusln.app/api/rates?storeId=Fjt7gLnGpg4UeBMFccLquy3GTTEz4cHU4PZMU63zqMBo"
+  private let mempoolURL = "https://mempool.space/api/v1/prices"
+  private var coinGeckoURL: String {
+    let codes = FiatPriceService.availableCurrencies.map { $0.code.lowercased() }.joined(separator: ",")
+    return "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=\(codes)"
+  }
+
+  private let refreshInterval: TimeInterval = 90
+  private let maxCacheAge: TimeInterval = 3600
 
   static let availableCurrencies: [(code: String, name: String)] = [
     ("USD", "US Dollar"),
@@ -68,7 +88,6 @@ final class FiatPriceService {
   private init() {}
 
   var currentRate: Double? {
-    // Don't return stale rates older than 6 hours
     guard let lastFetched, Date().timeIntervalSince(lastFetched) < maxCacheAge else {
       return nil
     }
@@ -150,6 +169,11 @@ final class FiatPriceService {
     currencySymbol(for: currentCurrencyCode)
   }
 
+  func resetCache() {
+    rates = [:]
+    lastFetched = nil
+  }
+
   func fetchRatesIfNeeded() async {
     if let lastFetched, Date().timeIntervalSince(lastFetched) < refreshInterval {
       return
@@ -162,8 +186,21 @@ final class FiatPriceService {
     isFetching = true
     defer { isFetching = false }
 
-    guard let url = URL(string: apiURL) else { return }
+    let sourceRaw = UserDefaults.standard.string(forKey: Constants.fiatSourceKey) ?? FiatSource.zeus.rawValue
+    let source = FiatSource(rawValue: sourceRaw) ?? .zeus
 
+    switch source {
+    case .zeus:
+      await fetchZeusRates()
+    case .mempoolSpace:
+      await fetchMempoolRates()
+    case .coinGecko:
+      await fetchCoinGeckoRates()
+    }
+  }
+
+  private func fetchZeusRates() async {
+    guard let url = URL(string: zeusURL) else { return }
     do {
       let (data, _) = try await URLSession.shared.data(from: url)
       let decoded = try JSONDecoder().decode([RateEntry].self, from: data)
@@ -176,7 +213,44 @@ final class FiatPriceService {
       rates = newRates
       lastFetched = Date()
     } catch {
-      print("Failed to fetch fiat rates: \(error)")
+      print("Failed to fetch Zeus fiat rates: \(error)")
+    }
+  }
+
+  private func fetchMempoolRates() async {
+    guard let url = URL(string: mempoolURL) else { return }
+    do {
+      let (data, _) = try await URLSession.shared.data(from: url)
+      let decoded = try JSONDecoder().decode(MempoolPriceResponse.self, from: data)
+      var newRates: [String: Double] = [:]
+      if let v = decoded.USD { newRates["USD"] = v }
+      if let v = decoded.EUR { newRates["EUR"] = v }
+      if let v = decoded.GBP { newRates["GBP"] = v }
+      if let v = decoded.CAD { newRates["CAD"] = v }
+      if let v = decoded.CHF { newRates["CHF"] = v }
+      if let v = decoded.AUD { newRates["AUD"] = v }
+      if let v = decoded.JPY { newRates["JPY"] = v }
+      rates = newRates
+      lastFetched = Date()
+    } catch {
+      print("Failed to fetch mempool.space fiat rates: \(error)")
+    }
+  }
+
+  private func fetchCoinGeckoRates() async {
+    guard let url = URL(string: coinGeckoURL) else { return }
+    do {
+      let (data, _) = try await URLSession.shared.data(from: url)
+      let decoded = try JSONDecoder().decode([String: [String: Double]].self, from: data)
+      guard let bitcoin = decoded["bitcoin"] else { return }
+      var newRates: [String: Double] = [:]
+      for (key, value) in bitcoin {
+        newRates[key.uppercased()] = value
+      }
+      rates = newRates
+      lastFetched = Date()
+    } catch {
+      print("Failed to fetch CoinGecko fiat rates: \(error)")
     }
   }
 }
@@ -187,4 +261,15 @@ private struct RateEntry: Decodable {
   let currencyPair: String
   let code: String
   let rate: Double
+}
+
+private struct MempoolPriceResponse: Decodable {
+  let time: Int
+  let USD: Double?
+  let EUR: Double?
+  let GBP: Double?
+  let CAD: Double?
+  let CHF: Double?
+  let AUD: Double?
+  let JPY: Double?
 }

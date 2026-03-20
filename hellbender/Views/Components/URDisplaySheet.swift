@@ -13,7 +13,11 @@ struct URDisplaySheet: View {
     self.urType = urType
     self.framesPerSecond = framesPerSecond
 
-    let cbor = CBOR.bytes(data)
+    // URKit's FountainEncoder requires messageLen >= minFragmentLen (default 10).
+    // CBOR.bytes(Data()) encodes to only 1 byte, which causes a fatal range crash.
+    // Use a zero-padded placeholder when data is too small to encode safely.
+    let safeData = data.count >= 10 ? data : Data(count: 10)
+    let cbor = CBOR.bytes(safeData)
     let ur = (try? UR(type: urType, cbor: cbor)) ?? (try! UR(type: "bytes", cbor: cbor))
     let state = URDisplayState(ur: ur, maxFragmentLen: maxFragmentLen)
     state.framesPerSecond = framesPerSecond

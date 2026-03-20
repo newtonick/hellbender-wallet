@@ -184,9 +184,9 @@ struct TransactionDetailView: View {
                 .foregroundStyle(Color.hbTextPrimary)
             }
 
-            if let vsize = transaction.vsize, vsize > 0 {
+            if let rate = transaction.currentFeeRate {
               DetailRow(label: "Fee Rate") {
-                Text("\(fee / vsize) sat/vB")
+                Text(String(format: rate == rate.rounded() ? "%.0f sat/vB" : "%.2f sat/vB", rate))
                   .font(.hbMono())
                   .foregroundStyle(Color.hbTextPrimary)
               }
@@ -241,7 +241,7 @@ struct TransactionDetailView: View {
               .font(.hbLabel())
               .foregroundStyle(Color.hbTextSecondary)
 
-            ForEach(transaction.outputs) { output in
+            ForEach(Array(transaction.outputs.enumerated()), id: \.element.id) { vout, output in
               VStack(alignment: .leading, spacing: 4) {
                 HStack {
                   VStack(alignment: .leading, spacing: 2) {
@@ -258,11 +258,12 @@ struct TransactionDetailView: View {
                     .foregroundStyle(Color.hbTextPrimary)
                 }
 
-                if let addrLabel = addressLabel(for: output.address), !addrLabel.isEmpty {
+                let outputDisplayLabel: String? = utxoLabel(vout: vout) ?? (output.isMine ? addressLabel(for: output.address) : nil)
+                if let displayLabel = outputDisplayLabel, !displayLabel.isEmpty {
                   HStack(spacing: 4) {
                     Image(systemName: "tag.fill")
                       .font(.system(size: 10))
-                    Text(addrLabel)
+                    Text(displayLabel)
                       .font(.hbBody(12))
                   }
                   .foregroundStyle(Color.hbSteelBlue)
@@ -308,6 +309,12 @@ struct TransactionDetailView: View {
     return walletLabels.first(where: { $0.walletID == walletID && $0.type == "addr" && $0.ref == address })?.label
   }
 
+  private func utxoLabel(vout: Int) -> String? {
+    guard let walletID = BitcoinService.shared.currentProfile?.id else { return nil }
+    let outpoint = "\(transaction.id):\(vout)"
+    return walletLabels.first(where: { $0.walletID == walletID && $0.type == "utxo" && $0.ref == outpoint })?.label
+  }
+
   private func loadLabel() {
     guard let walletID = BitcoinService.shared.currentProfile?.id else { return }
     let txid = transaction.id
@@ -339,6 +346,18 @@ struct TransactionDetailView: View {
     try? modelContext.save()
     label = trimmed
     isEditingLabel = false
+
+    // Propagate to related UTXOs and receive address if this is an incoming tx
+    if !trimmed.isEmpty {
+      LabelService.propagateFromTxLabel(
+        txid: transaction.id,
+        newLabel: trimmed,
+        transaction: transaction,
+        utxos: BitcoinService.shared.utxos,
+        context: modelContext,
+        walletID: walletID
+      )
+    }
   }
 }
 

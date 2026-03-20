@@ -47,8 +47,9 @@ final class MockBitcoinService: BitcoinServiceProtocol {
 
   func createPSBT(
     recipients _: [(address: String, amount: UInt64, isSendMax: Bool)],
-    feeRate _: UInt64,
-    utxos _: [(txid: String, vout: UInt32)]?
+    feeRate _: Double,
+    utxos _: [(txid: String, vout: UInt32)]?,
+    unspendable _: Set<String>
   ) async throws -> BitcoinService.PSBTResult {
     createPSBTCallCount += 1
     if let error = createPSBTError { throw error }
@@ -58,7 +59,7 @@ final class MockBitcoinService: BitcoinServiceProtocol {
     return result
   }
 
-  func createBumpFeePSBT(txid _: String, feeRate _: UInt64) async throws -> BitcoinService.PSBTResult {
+  func createBumpFeePSBT(txid _: String, feeRate _: Double) async throws -> BitcoinService.PSBTResult {
     if let error = createBumpFeePSBTError { throw error }
     guard let result = createBumpFeePSBTResult else {
       throw AppError.psbtCreationFailed("Mock not configured")
@@ -92,7 +93,7 @@ final class MockBitcoinService: BitcoinServiceProtocol {
   func getFeeRates() async throws -> BitcoinService.RecommendedFees {
     if let error = getFeeRatesError { throw error }
     return getFeeRatesResult ?? BitcoinService.RecommendedFees(
-      high: 5.0, medium: 2.0, low: 1.0, defaultRate: 2.0
+      fast: 5.0, medium: 2.0, slow: 1.0
     )
   }
 

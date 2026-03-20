@@ -3,6 +3,22 @@ import Combine
 import Foundation
 import SwiftData
 
+// MARK: - Fee Source
+
+enum FeeSource: String, CaseIterable {
+  case mempoolSpace = "mempool"
+  case electrum
+  case fixed
+
+  var displayName: String {
+    switch self {
+    case .mempoolSpace: "mempool.space"
+    case .electrum: "Electrum Server"
+    case .fixed: "Fixed Default"
+    }
+  }
+}
+
 @Observable
 final class BitcoinService {
   static let shared = BitcoinService()
@@ -21,6 +37,7 @@ final class BitcoinService {
   private(set) var transactions: [TransactionItem] = []
   private(set) var utxos: [UTXOItem] = []
   private(set) var requiredSignatures: Int = 2
+  private(set) var totalCosigners: Int = 1
   private(set) var chainTipHeight: UInt32 = 0
   private var needsFullScan: Bool = true
 
@@ -156,6 +173,7 @@ final class BitcoinService {
     self.persister = persister
     currentProfile = profile
     requiredSignatures = profile.requiredSignatures
+    totalCosigners = profile.totalCosigners
 
     // Load cached data from persisted wallet first (works offline)
     updateCachedData()
@@ -549,26 +567,53 @@ final class BitcoinService {
   // MARK: - Fee Estimation
 
   struct RecommendedFees {
-    let high: Float // Target: ~1 block
-    let medium: Float // Target: ~6 blocks
-    let low: Float // Target: ~144 blocks
-    let defaultRate: Float // Fallback
+    let fast: Double // Target: ~1 block
+    let medium: Double // Target: ~3–6 blocks
+    let slow: Double // Target: ~economy
+  }
 
-    var fastest: Float {
-      max(high, 1.0)
-    }
+  /// Fetches estimated fee rates in sats/vB, dispatching to the selected source
+  func getFeeRates() async throws -> RecommendedFees {
+    let sourceRaw = UserDefaults.standard.string(forKey: Constants.feeSourceKey) ?? FeeSource.electrum.rawValue
+    let source = FeeSource(rawValue: sourceRaw) ?? .electrum
 
-    var hour: Float {
-      max(medium, 1.0)
-    }
-
-    var economy: Float {
-      max(low, 1.0)
+    switch source {
+    case .mempoolSpace:
+      return try await fetchMempoolFees()
+    case .electrum:
+      return try await fetchElectrumFees()
+    case .fixed:
+      return RecommendedFees(fast: 5.0, medium: 2.0, slow: 1.0)
     }
   }
 
-  /// Fetches estimated fee rates in sats/vB from the connected Electrum server
-  func getFeeRates() async throws -> RecommendedFees {
+  private func fetchMempoolFees() async throws -> RecommendedFees {
+    let base = switch currentProfile?.bitcoinNetwork {
+    case .mainnet: "https://mempool.space"
+    case .testnet4: "https://mempool.space/testnet4"
+    case .testnet3: "https://mempool.space/testnet"
+    case .signet: "https://mempool.space/signet"
+    case nil: "https://mempool.space"
+    }
+    let url = URL(string: "\(base)/api/v1/fees/precise")!
+    let (data, _) = try await URLSession.shared.data(from: url)
+    let decoded = try JSONDecoder().decode(MempoolPreciseFees.self, from: data)
+    return RecommendedFees(
+      fast: decoded.fastestFee,
+      medium: decoded.halfHourFee,
+      slow: decoded.economyFee
+    )
+  }
+
+  private struct MempoolPreciseFees: Decodable {
+    let fastestFee: Double
+    let halfHourFee: Double
+    let hourFee: Double
+    let economyFee: Double
+    let minimumFee: Double
+  }
+
+  private func fetchElectrumFees() async throws -> RecommendedFees {
     guard let electrumClient else {
       throw AppError.electrumConnectionFailed("Not connected to server")
     }
@@ -579,29 +624,25 @@ final class BitcoinService {
     // So multiplier is 100,000
     let multiplier: Double = 100_000
 
-    // Fetch using Task to push it to a background thread as BDK methods are synchronous
     return await Task.detached {
       let highRaw = try? electrumClient.estimateFee(number: 1)
       let medRaw = try? electrumClient.estimateFee(number: 6)
       let lowRaw = try? electrumClient.estimateFee(number: 144)
 
-      // Calculate sats/vB. If server returns negative or invalid, fallback to 1.0
-      var highRate = Float((highRaw ?? -1) * multiplier)
-      var medRate = Float((medRaw ?? -1) * multiplier)
-      var lowRate = Float((lowRaw ?? -1) * multiplier)
+      var highRate = (highRaw ?? -1) * multiplier
+      var medRate = (medRaw ?? -1) * multiplier
+      var lowRate = (lowRaw ?? -1) * multiplier
 
-      // Sanity cap: Testnet electrum servers sometimes return absurdly high values (e.g., 3000+ sats/vB).
-      // Cap the suggested rates to realistic maximums to prevent user shock.
-      let maxSaneRate: Float = 500.0
+      // Sanity cap: Testnet electrum servers sometimes return absurdly high values.
+      let maxSaneRate = 500.0
       if highRate > maxSaneRate { highRate = 5.0 }
       if medRate > maxSaneRate { medRate = 2.0 }
       if lowRate > maxSaneRate { lowRate = 1.0 }
 
       return RecommendedFees(
-        high: highRate > 0 ? highRate : 5.0,
+        fast: highRate > 0 ? highRate : 5.0,
         medium: medRate > 0 ? medRate : 2.0,
-        low: lowRate > 0 ? lowRate : 1.0,
-        defaultRate: 2.0
+        slow: lowRate > 0 ? lowRate : 1.0
       )
     }.value
   }
@@ -619,13 +660,15 @@ final class BitcoinService {
 
   func createPSBT(
     recipients: [(address: String, amount: UInt64, isSendMax: Bool)],
-    feeRate: UInt64,
-    utxos: [(txid: String, vout: UInt32)]? = nil
+    feeRate: Double,
+    utxos: [(txid: String, vout: UInt32)]? = nil,
+    unspendable: Set<String> = []
   ) async throws -> PSBTResult {
     guard let wallet else { throw AppError.walletNotLoaded }
 
     let network = bdkNetwork(from: currentProfile?.bitcoinNetwork ?? .testnet4)
-    let bdkFeeRate = try FeeRate.fromSatPerVb(satVb: max(feeRate, 1))
+    let satKwu = max(UInt64(round(feeRate * 250.0)), 1)
+    let bdkFeeRate = FeeRate.fromSatPerKwu(satKwu: satKwu)
 
     let safeHeight = chainTipHeight > 0 ? chainTipHeight - 1 : 0
     var builder = TxBuilder()
@@ -633,7 +676,21 @@ final class BitcoinService {
       .addGlobalXpubs()
       .nlocktime(locktime: .blocks(height: safeHeight))
 
-    // Manual UTXO selection
+    // Pass frozen outpoints to BDK so automatic coin selection skips them.
+    // Note: BDK lets explicit addUtxos() entries override the unspendable list,
+    // so manual selection is unaffected here.
+    if !unspendable.isEmpty {
+      let frozenOutpoints = unspendable.compactMap { str -> OutPoint? in
+        let parts = str.split(separator: ":", maxSplits: 1)
+        guard parts.count == 2, let vout = UInt32(parts[1]) else { return nil }
+        return try? OutPoint(txid: Txid.fromString(hex: String(parts[0])), vout: vout)
+      }
+      if !frozenOutpoints.isEmpty {
+        builder = builder.unspendable(unspendable: frozenOutpoints)
+      }
+    }
+
+    // Manual UTXO selection (addUtxos takes priority over the unspendable list in BDK)
     if let utxos, !utxos.isEmpty {
       let outpoints = try utxos.map { try OutPoint(txid: Txid.fromString(hex: $0.txid), vout: $0.vout) }
       builder = builder.addUtxos(outpoints: outpoints).manuallySelectedOnly()
@@ -683,11 +740,12 @@ final class BitcoinService {
     return PSBTResult(base64: base64, bytes: bytes, fee: fee, changeAmount: changeAmount, changeAddress: changeAddress, inputCount: inputCount)
   }
 
-  func createBumpFeePSBT(txid: String, feeRate: UInt64) async throws -> PSBTResult {
+  func createBumpFeePSBT(txid: String, feeRate: Double) async throws -> PSBTResult {
     guard let wallet else { throw AppError.walletNotLoaded }
 
     let network = bdkNetwork(from: currentProfile?.bitcoinNetwork ?? .testnet4)
-    let bdkFeeRate = try FeeRate.fromSatPerVb(satVb: max(feeRate, 1))
+    let satKwu = max(UInt64(round(feeRate * 250.0)), 1)
+    let bdkFeeRate = FeeRate.fromSatPerKwu(satKwu: satKwu)
 
     let safeHeight = chainTipHeight > 0 ? chainTipHeight - 1 : 0
     let bdkTxid = try Txid.fromString(hex: txid)
@@ -773,6 +831,21 @@ final class BitcoinService {
     guard let psbt = try? Psbt(psbtBase64: base64),
           let tx = try? psbt.extractTx() else { return [] }
     return tx.input().map { "\($0.previousOutput.txid):\($0.previousOutput.vout)" }
+  }
+
+  /// Returns the output index (vout) of the given address in the PSBT's transaction outputs.
+  func psbtChangeVout(_ psbtData: Data, changeAddress: String) -> UInt32? {
+    let network = bdkNetwork(from: currentProfile?.bitcoinNetwork ?? .testnet4)
+    guard let psbt = try? Psbt(psbtBase64: psbtData.base64EncodedString()),
+          let tx = try? psbt.extractTx() else { return nil }
+    for (i, output) in tx.output().enumerated() {
+      if let addr = try? Address.fromScript(script: output.scriptPubkey, network: network).description,
+         addr == changeAddress
+      {
+        return UInt32(i)
+      }
+    }
+    return nil
   }
 
   func broadcastPSBT(_ psbtData: Data) async throws -> String {

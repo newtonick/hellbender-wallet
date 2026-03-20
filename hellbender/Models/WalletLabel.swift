@@ -22,9 +22,10 @@ final class WalletLabel {
   enum LabelType: String {
     case tx
     case addr
+    case utxo
   }
 
-  static let maxLabelLength = 150
+  static let maxLabelLength = 255
 
   var labelType: LabelType {
     LabelType(rawValue: type) ?? .tx

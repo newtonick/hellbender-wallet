@@ -6,15 +6,17 @@ protocol BitcoinServiceProtocol {
   var utxos: [UTXOItem] { get }
   var currentNetwork: BitcoinNetwork? { get }
   var requiredSignatures: Int { get }
+  var totalCosigners: Int { get }
 
   /// PSBT operations
   func createPSBT(
     recipients: [(address: String, amount: UInt64, isSendMax: Bool)],
-    feeRate: UInt64,
-    utxos: [(txid: String, vout: UInt32)]?
+    feeRate: Double,
+    utxos: [(txid: String, vout: UInt32)]?,
+    unspendable: Set<String>
   ) async throws -> BitcoinService.PSBTResult
 
-  func createBumpFeePSBT(txid: String, feeRate: UInt64) async throws -> BitcoinService.PSBTResult
+  func createBumpFeePSBT(txid: String, feeRate: Double) async throws -> BitcoinService.PSBTResult
 
   func combinePSBTs(original: Data, signed: Data) async throws -> (String, Data)
 

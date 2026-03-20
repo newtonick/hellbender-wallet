@@ -125,14 +125,16 @@ struct BroadcastResultView: View {
 
   private func saveRecipientLabels() {
     guard let walletID = BitcoinService.shared.currentProfile?.id else { return }
+    var firstLabel: String?
     for recipient in viewModel.recipients {
       var trimmed = recipient.label.trimmingCharacters(in: .whitespacesAndNewlines)
       guard !trimmed.isEmpty else { continue }
       if trimmed.utf8.count > WalletLabel.maxLabelLength {
         trimmed = String(trimmed.utf8.prefix(WalletLabel.maxLabelLength))!
       }
+      if firstLabel == nil { firstLabel = trimmed }
       let address = recipient.address.trimmingCharacters(in: .whitespacesAndNewlines)
-      // Save as address label — skip if one already exists
+      // Save as address label — update if one already exists
       let addrType = "addr"
       let descriptor = FetchDescriptor<WalletLabel>(predicate: #Predicate {
         $0.walletID == walletID && $0.type == addrType && $0.ref == address
@@ -141,6 +143,33 @@ struct BroadcastResultView: View {
         existing.label = trimmed
       } else {
         modelContext.insert(WalletLabel(walletID: walletID, type: .addr, ref: address, label: trimmed))
+      }
+    }
+    // Save the first non-empty recipient label as the tx label
+    if let txLabel = firstLabel {
+      let txid = viewModel.broadcastTxid
+      let txType = "tx"
+      let descriptor = FetchDescriptor<WalletLabel>(predicate: #Predicate {
+        $0.walletID == walletID && $0.type == txType && $0.ref == txid
+      })
+      if let existing = (try? modelContext.fetch(descriptor))?.first {
+        existing.label = txLabel
+      } else {
+        modelContext.insert(WalletLabel(walletID: walletID, type: .tx, ref: txid, label: txLabel))
+      }
+
+      // Propagate to change output if there is one
+      if let changeAddress = viewModel.changeAddress, !changeAddress.isEmpty,
+         let changeVout = BitcoinService.shared.psbtChangeVout(viewModel.psbtBytes, changeAddress: changeAddress)
+      {
+        LabelService.propagateChangeLabel(
+          txid: txid,
+          txLabel: txLabel,
+          changeAddress: changeAddress,
+          changeVout: changeVout,
+          context: modelContext,
+          walletID: walletID
+        )
       }
     }
     try? modelContext.save()

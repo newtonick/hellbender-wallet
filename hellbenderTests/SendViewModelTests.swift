@@ -160,7 +160,7 @@ struct SendViewModelTests {
     #expect(vm.currentStep == .recipients)
     #expect(vm.recipients.count == 1)
     #expect(vm.recipients[0].address == "")
-    #expect(vm.feeRateSatVb == "1")
+    #expect(vm.feeRateSatVb == "")
     #expect(vm.psbtBase64 == "")
     #expect(vm.psbtBytes.isEmpty)
     #expect(vm.totalFee == 0)
@@ -180,7 +180,7 @@ struct SendViewModelTests {
     #expect(vm.showUTXOPicker == false)
   }
 
-  // MARK: - Fee Rate Validation (Integer-Only)
+  // MARK: - Fee Rate Validation
 
   @Test func feeRateEdgeCases() {
     let vm = SendViewModel()
@@ -189,7 +189,7 @@ struct SendViewModelTests {
     #expect(vm.isValidFeeRate == false, "0 is below minimum")
 
     vm.feeRateSatVb = "0.5"
-    #expect(vm.isValidFeeRate == false, "Non-integer should be invalid")
+    #expect(vm.isValidFeeRate == true, "0.5 sat/vB is a valid decimal rate")
 
     vm.feeRateSatVb = "-1"
     #expect(vm.isValidFeeRate == false, "Negative should be invalid")
@@ -201,23 +201,23 @@ struct SendViewModelTests {
     #expect(vm.isValidFeeRate == false, "Empty should be invalid")
 
     vm.feeRateSatVb = "1"
-    #expect(vm.isValidFeeRate == true, "1 is valid minimum")
+    #expect(vm.isValidFeeRate == true, "1 is valid")
 
     vm.feeRateSatVb = "1000"
     #expect(vm.isValidFeeRate == true, "High rate is valid")
   }
 
-  @Test func feeRateValueParsesAsUInt64() {
+  @Test func feeRateValueParsesAsDouble() {
     let vm = SendViewModel()
 
     vm.feeRateSatVb = "5"
-    #expect(vm.feeRateValue == 5)
+    #expect(vm.feeRateValue == 5.0)
 
     vm.feeRateSatVb = "abc"
-    #expect(vm.feeRateValue == 1, "Invalid input defaults to 1")
+    #expect(vm.feeRateValue == 0, "Invalid input defaults to 0")
 
     vm.feeRateSatVb = "0.5"
-    #expect(vm.feeRateValue == 1, "Decimal input defaults to 1")
+    #expect(vm.feeRateValue == 0.5, "Decimal input parses correctly")
   }
 
   // MARK: - BIP-21 URI Parsing

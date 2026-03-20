@@ -5,6 +5,7 @@ struct UTXOListView: View {
   @State private var viewModel = UTXOListViewModel()
   @Environment(\.modelContext) private var modelContext
   @Query private var frozenUTXOs: [FrozenUTXO]
+  @Query private var walletLabels: [WalletLabel]
   @AppStorage(Constants.denominationKey) private var denomination: String = "sats"
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
   @AppStorage(Constants.fiatPrimaryKey) private var fiatPrimary = false
@@ -78,9 +79,24 @@ struct UTXOListView: View {
                 }
               }
 
-              Text(utxo.keychain == .external ? "Receive" : "Change")
-                .font(.hbLabel(10))
-                .foregroundStyle(Color.hbTextSecondary)
+              HStack {
+                Text(utxo.keychain == .external ? "Receive" : "Change")
+                  .font(.hbLabel(10))
+                  .foregroundStyle(Color.hbTextSecondary)
+
+                Spacer()
+
+                if let label = utxoLabel(for: utxo), !label.isEmpty {
+                  HStack(spacing: 4) {
+                    Image(systemName: "tag.fill")
+                      .font(.system(size: 9))
+                    Text(String(label.prefix(60)))
+                      .font(.hbBody(11))
+                      .lineLimit(1)
+                  }
+                  .foregroundStyle(Color.hbSteelBlue)
+                }
+              }
             }
             .opacity(isFrozen(utxo) ? 0.6 : 1.0)
           }
@@ -115,6 +131,11 @@ struct UTXOListView: View {
     .onChange(of: BitcoinService.shared.currentProfile?.id) {
       viewModel.loadUTXOs()
     }
+  }
+
+  private func utxoLabel(for utxo: UTXOItem) -> String? {
+    guard let walletID = BitcoinService.shared.currentProfile?.id else { return nil }
+    return walletLabels.first(where: { $0.walletID == walletID && $0.type == "utxo" && $0.ref == utxo.id })?.label
   }
 
   private func isFrozen(_ utxo: UTXOItem) -> Bool {

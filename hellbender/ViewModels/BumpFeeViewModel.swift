@@ -20,6 +20,7 @@ final class BumpFeeViewModel {
 
   // Fee input
   var newFeeRate: String = ""
+  var selectedFeePreset: FeePreset = .custom
   var recommendedFees: BitcoinService.RecommendedFees?
 
   // PSBT state
@@ -36,16 +37,40 @@ final class BumpFeeViewModel {
 
   private let bitcoinService: any BitcoinServiceProtocol
 
-  var feeRateValue: UInt64 {
-    UInt64(newFeeRate) ?? 0
+  var feeRateValue: Double {
+    Double(newFeeRate) ?? 0
+  }
+
+  /// Minimum fee rate (sat/vB) required to replace the original transaction.
+  var minimumBumpRate: Double {
+    Double(originalFeeRate ?? 0) + 1.0
   }
 
   var isValidFeeRate: Bool {
-    guard let rate = UInt64(newFeeRate), rate >= 1 else { return false }
+    guard let rate = Double(newFeeRate), rate > 0 else { return false }
     if let original = originalFeeRate {
-      return Float(rate) > original
+      return rate > Double(original)
     }
     return true
+  }
+
+  static func formatRate(_ rate: Double) -> String {
+    var s = String(format: "%.2f", rate)
+    if s.contains(".") {
+      while s.hasSuffix("0") {
+        s.removeLast()
+      }
+      if s.hasSuffix(".") { s.removeLast() }
+    }
+    return s
+  }
+
+  func applyPreset(_ preset: FeePreset) {
+    selectedFeePreset = preset
+    if let fees = recommendedFees, let rate = preset.rate(from: fees) {
+      newFeeRate = Self.formatRate(rate)
+    }
+    // For .custom, preserve the existing newFeeRate value
   }
 
   var needsMoreSignatures: Bool {
@@ -62,6 +87,9 @@ final class BumpFeeViewModel {
     originalFeeRate = transaction.currentFeeRate
     self.bitcoinService = bitcoinService
     requiredSignatures = bitcoinService.requiredSignatures
+    // Pre-fill custom with the minimum valid bump rate
+    let minRate = (originalFeeRate.map { Double($0) } ?? 0.0) + 1.0
+    newFeeRate = BumpFeeViewModel.formatRate(max(minRate, 1.0))
   }
 
   func fetchFeeRates() async {

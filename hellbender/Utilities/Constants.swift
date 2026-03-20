@@ -23,9 +23,12 @@ enum Constants {
   static let fiatEnabledKey = "fiatEnabled"
   static let fiatCurrencyKey = "fiatCurrency"
   static let fiatPrimaryKey = "fiatPrimary"
+  static let fiatSourceKey = "fiatSource"
+  static let feeSourceKey = "feeSource"
   static let qrEncodingKey = "qrEncoding"
   static let qrDensityKey = "qrDensity"
   static let qrFrameRateKey = "qrFrameRate"
+  static let themeKey = "appTheme"
 
   /// Available auto-refresh intervals in seconds
   static let autoRefreshStops: [Double] = [30, 60, 120, 300, 600]

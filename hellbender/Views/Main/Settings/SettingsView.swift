@@ -85,6 +85,16 @@ struct SettingsView: View {
             AppLockSettingsRow()
           }
 
+          // Appearance
+          Section("Appearance") {
+            AppearanceSettingsRow()
+          }
+
+          // Fee Estimation
+          Section("Fee Estimation") {
+            FeeSettingsRow()
+          }
+
           // Fiat Display
           Section("Fiat Display") {
             FiatSettingsRow()
@@ -128,6 +138,28 @@ struct SettingsView: View {
   }
 }
 
+// MARK: - Appearance Settings
+
+private struct AppearanceSettingsRow: View {
+  @AppStorage(Constants.themeKey) private var themeRaw = AppTheme.system.rawValue
+
+  var body: some View {
+    Picker("Theme", selection: $themeRaw) {
+      ForEach(AppTheme.allCases, id: \.rawValue) { theme in
+        Text(theme.displayName).tag(theme.rawValue)
+      }
+    }
+    .tint(Color.hbBitcoinOrange)
+    .foregroundStyle(Color.hbTextPrimary)
+    .onChange(of: themeRaw) { _, new in
+      if let t = AppTheme(rawValue: new) {
+        ThemeManager.shared.apply(t)
+      }
+    }
+    .listRowBackground(Color.hbSurface)
+  }
+}
+
 // MARK: - Denomination Settings
 
 private struct DenominationSettingsRow: View {
@@ -149,11 +181,30 @@ private struct DenominationSettingsRow: View {
   }
 }
 
+// MARK: - Fee Settings
+
+private struct FeeSettingsRow: View {
+  @AppStorage(Constants.feeSourceKey) private var feeSourceRaw = FeeSource.electrum.rawValue
+
+  var body: some View {
+    Picker("Fee Source", selection: $feeSourceRaw) {
+      ForEach(FeeSource.allCases, id: \.rawValue) { source in
+        Text(source.displayName).tag(source.rawValue)
+      }
+    }
+    .tint(Color.hbBitcoinOrange)
+    .foregroundStyle(Color.hbTextPrimary)
+    .listRowBackground(Color.hbSurface)
+  }
+}
+
 // MARK: - Fiat Settings
 
 private struct FiatSettingsRow: View {
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
   @AppStorage(Constants.fiatCurrencyKey) private var fiatCurrency = "USD"
+  @AppStorage(Constants.fiatSourceKey) private var fiatSourceRaw = FiatSource.zeus.rawValue
+  @State private var fiatService = FiatPriceService.shared
 
   var body: some View {
     VStack(spacing: 0) {
@@ -169,9 +220,22 @@ private struct FiatSettingsRow: View {
       .tint(Color.hbBitcoinOrange)
 
       if fiatEnabled {
+        Picker("Price Source", selection: $fiatSourceRaw) {
+          ForEach(FiatSource.allCases, id: \.rawValue) { source in
+            Text(source.displayName).tag(source.rawValue)
+          }
+        }
+        .tint(Color.hbBitcoinOrange)
+        .foregroundStyle(Color.hbTextPrimary)
+        .padding(.top, 12)
+        .onChange(of: fiatSourceRaw) {
+          fiatService.resetCache()
+          Task { await fiatService.fetchRates() }
+        }
+
         Picker("Currency", selection: $fiatCurrency) {
           ForEach(FiatPriceService.availableCurrencies, id: \.code) { currency in
-            Text("\(currency.code) – \(currency.name)").tag(currency.code)
+            Text(currency.code).tag(currency.code)
           }
         }
         .tint(Color.hbBitcoinOrange)

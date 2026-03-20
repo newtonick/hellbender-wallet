@@ -61,45 +61,16 @@ private struct BumpFeeInputView: View {
                 .foregroundStyle(Color.hbTextPrimary)
             }
           }
-        }
-        .hbCard()
 
-        // New fee rate input
-        VStack(alignment: .leading, spacing: 8) {
-          Text("New Fee Rate (sat/vB)")
-            .font(.hbLabel())
-            .foregroundStyle(Color.hbTextSecondary)
-
-          TextField("e.g. 5", text: $viewModel.newFeeRate)
-            .keyboardType(.numberPad)
-            .font(.hbMono())
-            .padding(12)
-            .background(Color.hbSurfaceElevated)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .foregroundStyle(Color.hbTextPrimary)
-            .onChange(of: viewModel.newFeeRate) { _, newValue in
-              let filtered = newValue.filter(\.isWholeNumber)
-              if filtered != newValue { viewModel.newFeeRate = filtered }
-            }
-
-          if let fees = viewModel.recommendedFees {
-            HStack(spacing: 8) {
-              FeePresetButton(label: "High", rate: fees.fastest) {
-                viewModel.newFeeRate = "\(Int(ceil(fees.fastest)))"
-              }
-              FeePresetButton(label: "Medium", rate: fees.hour) {
-                viewModel.newFeeRate = "\(Int(ceil(fees.hour)))"
-              }
-            }
-          }
-
-          if let original = viewModel.originalFeeRate, !viewModel.newFeeRate.isEmpty, !viewModel.isValidFeeRate {
-            Text("Must be higher than \(String(format: "%.1f", original)) sat/vB")
-              .font(.hbBody(12))
-              .foregroundStyle(.red)
+          DetailRow(label: "Minimum to Bump") {
+            Text(BumpFeeViewModel.formatRate(viewModel.minimumBumpRate) + " sat/vB")
+              .font(.hbMono())
+              .foregroundStyle(Color.hbBitcoinOrange)
           }
         }
         .hbCard()
+
+        BumpFeeRateCard(viewModel: viewModel)
 
         Button(action: {
           Task { await viewModel.createBumpPSBT() }
@@ -125,25 +96,152 @@ private struct BumpFeeInputView: View {
   }
 }
 
-private struct FeePresetButton: View {
-  let label: String
-  let rate: Float
-  let action: () -> Void
+private struct BumpFeeRateCard: View {
+  @Bindable var viewModel: BumpFeeViewModel
+  @State private var showFeeMenu = true
+
+  private var currentRateText: String {
+    viewModel.feeRateValue > 0
+      ? BumpFeeViewModel.formatRate(viewModel.feeRateValue) + " sat/vB"
+      : "--"
+  }
 
   var body: some View {
-    Button(action: action) {
-      VStack(spacing: 2) {
-        Text(label)
-          .font(.hbLabel(11))
-        Text("\(Int(ceil(rate))) sat/vB")
-          .font(.hbMono(12))
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(spacing: 8) {
+        Text("New Fee Rate")
+          .font(.hbLabel())
+          .foregroundStyle(Color.hbTextSecondary)
+
+        Spacer()
+
+        Text(currentRateText)
+          .font(.hbMono(14))
+          .foregroundStyle(Color.hbTextPrimary)
+
+        HStack(spacing: 4) {
+          Text(viewModel.selectedFeePreset.displayName)
+            .font(.hbBody(14))
+            .foregroundStyle(Color.hbBitcoinOrange)
+          Image(systemName: showFeeMenu ? "chevron.down" : "chevron.left")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(Color.hbBitcoinOrange)
+        }
       }
-      .foregroundStyle(Color.hbBitcoinOrange)
-      .padding(.horizontal, 12)
-      .padding(.vertical, 6)
-      .background(Color.hbBitcoinOrange.opacity(0.1))
-      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .contentShape(Rectangle())
+      .onTapGesture {
+        withAnimation(.easeInOut(duration: 0.2)) { showFeeMenu.toggle() }
+      }
+
+      if showFeeMenu {
+        Divider()
+          .background(Color.hbBorder)
+
+        VStack(spacing: 10) {
+          ForEach(FeePreset.allCases, id: \.self) { preset in
+            if preset == .custom {
+              customRow
+            } else {
+              presetRow(preset)
+            }
+          }
+        }
+      }
+
+      if !viewModel.isValidFeeRate, !viewModel.newFeeRate.isEmpty {
+        Text("Must be higher than \(String(format: "%.1f", viewModel.originalFeeRate ?? 0)) sat/vB")
+          .font(.hbLabel(11))
+          .foregroundStyle(Color.hbError)
+      }
     }
+    .hbCard()
+  }
+
+  private func presetRow(_ preset: FeePreset) -> some View {
+    Button(action: {
+      viewModel.applyPreset(preset)
+      withAnimation(.easeInOut(duration: 0.2)) { showFeeMenu = false }
+    }) {
+      HStack(spacing: 10) {
+        Image(systemName: viewModel.selectedFeePreset == preset ? "checkmark.circle.fill" : "circle")
+          .font(.system(size: 18))
+          .foregroundStyle(viewModel.selectedFeePreset == preset ? Color.hbBitcoinOrange : Color.hbBorder)
+
+        Text(preset.displayName)
+          .font(.hbBody(14))
+          .foregroundStyle(Color.hbTextPrimary)
+
+        Spacer()
+
+        if let rate = preset.rate(from: viewModel.recommendedFees) {
+          Text(BumpFeeViewModel.formatRate(rate) + " sat/vB")
+            .font(.hbMono(13))
+            .foregroundStyle(Color.hbTextPrimary)
+        } else {
+          Text("-- sat/vB")
+            .font(.hbMono(13))
+            .foregroundStyle(Color.hbTextPrimary)
+        }
+      }
+      .frame(minHeight: 44)
+    }
+    .buttonStyle(.plain)
+  }
+
+  private var customRow: some View {
+    HStack(spacing: 10) {
+      Image(systemName: viewModel.selectedFeePreset == .custom ? "checkmark.circle.fill" : "circle")
+        .font(.system(size: 18))
+        .foregroundStyle(viewModel.selectedFeePreset == .custom ? Color.hbBitcoinOrange : Color.hbBorder)
+        .onTapGesture { viewModel.selectedFeePreset = .custom }
+
+      Text(FeePreset.custom.displayName)
+        .font(.hbBody(14))
+        .foregroundStyle(Color.hbTextPrimary)
+        .onTapGesture { viewModel.selectedFeePreset = .custom }
+
+      Spacer()
+
+      TextField("0.0", text: $viewModel.newFeeRate)
+        .font(.hbMono(14))
+        .keyboardType(.decimalPad)
+        .multilineTextAlignment(.trailing)
+        .frame(width: 60)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.hbSurfaceElevated)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+          RoundedRectangle(cornerRadius: 6)
+            .strokeBorder(
+              viewModel.selectedFeePreset == .custom && !viewModel.isValidFeeRate && !viewModel.newFeeRate.isEmpty
+                ? Color.hbError.opacity(0.8) : .clear,
+              lineWidth: 1.5
+            )
+        )
+        .onChange(of: viewModel.newFeeRate) { _, newValue in
+          var filtered = newValue.filter { $0.isNumber || $0 == "." }
+          if let dotIdx = filtered.firstIndex(of: ".") {
+            let afterDot = filtered[filtered.index(after: dotIdx)...]
+            filtered = String(filtered[...dotIdx]) + afterDot.filter { $0 != "." }
+          }
+          if filtered != newValue { viewModel.newFeeRate = filtered }
+          // Only switch to .custom when the value wasn't set by applyPreset
+          if let rate = viewModel.selectedFeePreset.rate(from: viewModel.recommendedFees),
+             viewModel.newFeeRate == BumpFeeViewModel.formatRate(rate)
+          {
+            // Value matches the selected preset — applyPreset wrote this, leave preset as-is
+          } else {
+            viewModel.selectedFeePreset = .custom
+          }
+        }
+        .onTapGesture { viewModel.selectedFeePreset = .custom }
+
+      Text("sat/vB")
+        .font(.hbBody(13))
+        .foregroundStyle(Color.hbTextSecondary)
+    }
+    .frame(minHeight: 44)
   }
 }
 
@@ -168,11 +266,14 @@ private struct BumpFeePSBTDisplayView: View {
 
         if !viewModel.psbtBytes.isEmpty {
           GeometryReader { geo in
+            let bytes = viewModel.psbtBytes
             let maxSide = min(geo.size.width, geo.size.height)
             Group {
-              if qrEncoding == .ur {
+              if bytes.isEmpty {
+                EmptyView()
+              } else if qrEncoding == .ur {
                 URDisplaySheet(
-                  data: viewModel.psbtBytes,
+                  data: bytes,
                   urType: "crypto-psbt",
                   framesPerSecond: framesPerSecond,
                   maxFragmentLen: qrDensity.urFragmentLen
@@ -180,7 +281,7 @@ private struct BumpFeePSBTDisplayView: View {
                 .id(qrDensity.urFragmentLen)
               } else {
                 BBQRDisplayView(
-                  data: viewModel.psbtBytes,
+                  data: bytes,
                   fileType: .psbt,
                   framesPerSecond: framesPerSecond,
                   maxVersion: qrDensity.bbqrMaxVersion
@@ -188,7 +289,7 @@ private struct BumpFeePSBTDisplayView: View {
                 .id("\(qrDensity.rawValue)-bbqr")
               }
             }
-            .frame(width: maxSide, height: maxSide)
+            .frame(width: maxSide - 10, height: maxSide - 10)
             .padding(5)
             .background(Color.white)
             .shadow(color: Color.hbBitcoinOrange.opacity(0.2), radius: 20)

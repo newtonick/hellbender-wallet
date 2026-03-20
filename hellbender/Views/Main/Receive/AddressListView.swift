@@ -52,11 +52,15 @@ struct AddressListView: View {
               }
 
               if let addrLabel = addressLabel(for: address.address), !addrLabel.isEmpty {
-                Text(addrLabel)
-                  .font(.hbBody(12))
-                  .foregroundStyle(Color.hbTextSecondary)
-                  .lineLimit(1)
-                  .padding(.leading, 48)
+                HStack(spacing: 4) {
+                  Image(systemName: "tag.fill")
+                    .font(.system(size: 10))
+                  Text(addrLabel)
+                    .font(.hbBody(12))
+                    .lineLimit(1)
+                }
+                .foregroundStyle(Color.hbSteelBlue)
+                .padding(.leading, 48)
               }
             }
           }

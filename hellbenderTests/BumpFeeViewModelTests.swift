@@ -41,13 +41,14 @@ struct BumpFeeViewModelTests {
   }
 
   @Test func feeRateEdgeCases() {
+    // Transaction with fee=500, vsize=200 → originalFeeRate = 2.5 sat/vB
     let vm = BumpFeeViewModel(transaction: makeTransaction())
 
     vm.newFeeRate = "0"
     #expect(vm.isValidFeeRate == false, "0 is below minimum")
 
     vm.newFeeRate = "0.5"
-    #expect(vm.isValidFeeRate == false, "Non-integer should be invalid")
+    #expect(vm.isValidFeeRate == false, "0.5 is lower than original rate (2.5 sat/vB)")
 
     vm.newFeeRate = "-1"
     #expect(vm.isValidFeeRate == false, "Negative should be invalid")
@@ -59,11 +60,11 @@ struct BumpFeeViewModelTests {
     #expect(vm.isValidFeeRate == false, "Empty should be invalid")
   }
 
-  @Test func feeRateValueParsesAsUInt64() {
+  @Test func feeRateValueParsesAsDouble() {
     let vm = BumpFeeViewModel(transaction: makeTransaction())
 
     vm.newFeeRate = "5"
-    #expect(vm.feeRateValue == 5)
+    #expect(vm.feeRateValue == 5.0)
 
     vm.newFeeRate = "abc"
     #expect(vm.feeRateValue == 0, "Invalid input defaults to 0")
@@ -116,6 +117,6 @@ struct BumpFeeViewModelTests {
     #expect(vm.originalFeeRate == nil)
 
     vm.newFeeRate = "1"
-    #expect(vm.isValidFeeRate == true, "Any rate >= 1 is valid without original")
+    #expect(vm.isValidFeeRate == true, "Any rate > 0 is valid without original")
   }
 }

@@ -8,6 +8,7 @@ final class MockBitcoinService: BitcoinServiceProtocol {
   var utxos: [UTXOItem] = []
   var currentNetwork: BitcoinNetwork? = .testnet4
   var requiredSignatures: Int = 2
+  var totalCosigners: Int = 2
 
   // MARK: - Configurable Results
 

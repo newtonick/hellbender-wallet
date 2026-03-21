@@ -216,7 +216,7 @@ struct PSBTDisplayView: View {
               viewModel.showSavePSBT = true
             }
           }) {
-            Label("Save PSBT", systemImage: "square.and.arrow.down")
+            Label("Save PSBT", systemImage: "tray.and.arrow.down.fill")
               .font(.hbBody(14))
               .foregroundStyle(Color.hbBitcoinOrange)
           }

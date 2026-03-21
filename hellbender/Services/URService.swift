@@ -7,6 +7,7 @@ enum AppURResult {
   case psbt(Data)
   case hdKey(xpub: String, fingerprint: String, derivationPath: String)
   case descriptor(String)
+  case rawBytes(Data)
   case unknown(String)
 }
 
@@ -736,6 +737,10 @@ enum URService {
     case "crypto-output":
       if let descriptor = try? parseCryptoOutput(from: ur) {
         return .descriptor(descriptor)
+      }
+    case "bytes":
+      if case let .bytes(data) = ur.cbor {
+        return .rawBytes(data)
       }
     default:
       break

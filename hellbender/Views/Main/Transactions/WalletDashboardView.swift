@@ -4,28 +4,45 @@ struct WalletDashboardView: View {
   @Environment(\.dismiss) private var dismiss
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
 
-  private var bitcoinService: BitcoinService { BitcoinService.shared }
-  private var fiatService: FiatPriceService { FiatPriceService.shared }
+  private var bitcoinService: BitcoinService {
+    BitcoinService.shared
+  }
 
-  private var transactions: [TransactionItem] { bitcoinService.transactions }
-  private var utxos: [UTXOItem] { bitcoinService.utxos }
+  private var fiatService: FiatPriceService {
+    FiatPriceService.shared
+  }
 
-  private var confirmedBalance: UInt64 { bitcoinService.balance }
+  private var transactions: [TransactionItem] {
+    bitcoinService.transactions
+  }
+
+  private var utxos: [UTXOItem] {
+    bitcoinService.utxos
+  }
+
+  private var confirmedBalance: UInt64 {
+    bitcoinService.balance
+  }
 
   private var mempoolBalance: UInt64 {
     utxos.filter { !$0.isConfirmed }.reduce(0) { $0 + $1.amount }
   }
 
   private var totalFeesPaid: UInt64 {
-    transactions.filter { !$0.isIncoming }.compactMap { $0.fee }.reduce(0, +)
+    transactions.filter { !$0.isIncoming }.compactMap(\.fee).reduce(0, +)
   }
 
   private var avgUTXOSize: UInt64 {
     utxos.isEmpty ? 0 : utxos.reduce(0) { $0 + $1.amount } / UInt64(utxos.count)
   }
 
-  private var sentCount: Int { transactions.filter { !$0.isIncoming }.count }
-  private var receivedCount: Int { transactions.filter { $0.isIncoming }.count }
+  private var sentCount: Int {
+    transactions.filter { !$0.isIncoming }.count
+  }
+
+  private var receivedCount: Int {
+    transactions.filter(\.isIncoming).count
+  }
 
   /// Average age of confirmed UTXOs in seconds, using parent tx timestamp.
   private var avgUTXOAge: TimeInterval? {
@@ -56,8 +73,8 @@ struct WalletDashboardView: View {
     NavigationStack {
       ScrollView {
         VStack(spacing: 16) {
-
           // MARK: - Balance Header
+
           VStack(spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
               VStack(alignment: .leading, spacing: 2) {
@@ -91,6 +108,7 @@ struct WalletDashboardView: View {
           .hbCard()
 
           // MARK: - Metric Grid
+
           LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             DashboardMetricCard(
               icon: "arrow.left.arrow.right.circle",

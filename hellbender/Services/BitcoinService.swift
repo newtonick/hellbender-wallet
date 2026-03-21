@@ -499,6 +499,15 @@ final class BitcoinService {
     for i in 0 ..< UInt32(Constants.maxAddressGap) {
       let info = wallet.peekAddress(keychain: .external, index: i)
       if !usedAddresses.contains(info.address.description) {
+        // Reveal addresses up to this index so that incremental syncs
+        // (startSyncWithRevealedSpks) will monitor it for incoming funds.
+        var revealed = wallet.revealNextAddress(keychain: .external)
+        while revealed.index < info.index {
+          revealed = wallet.revealNextAddress(keychain: .external)
+        }
+        if let persister {
+          _ = try wallet.persist(persister: persister)
+        }
         return (info.address.description, info.index)
       }
     }

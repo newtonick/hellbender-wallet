@@ -18,11 +18,12 @@ struct URScannerSheet: View {
   @State private var currentZoom: CGFloat = 1.0
   @State private var baseZoom: CGFloat = 1.0
 
-  private let codesPublisher = URCodesPublisher()
+  private let codesPublisher: URCodesPublisher
 
   init(onResult: @escaping (AppURResult) -> Void) {
     self.onResult = onResult
     let publisher = URCodesPublisher()
+    self.codesPublisher = publisher
     _videoSession = StateObject(wrappedValue: URVideoSession(codesPublisher: publisher))
     _scanState = StateObject(wrappedValue: URScanState(codesPublisher: publisher))
   }

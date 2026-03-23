@@ -5,6 +5,7 @@ struct PSBTScanView: View {
   @Bindable var viewModel: SendViewModel
   @Environment(\.modelContext) private var modelContext
   @State private var showManualInput = false
+  @State private var showImportFile = false
   @State private var manualPSBTBase64 = ""
 
   var body: some View {
@@ -33,6 +34,12 @@ struct PSBTScanView: View {
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .padding(.horizontal, 24)
 
+      Button(action: { showImportFile = true }) {
+        Label("Import PSBT File", systemImage: "doc.badge.arrow.up")
+          .font(.hbBody(14))
+          .foregroundStyle(Color.hbBitcoinOrange)
+      }
+
       Button(action: { showManualInput = true }) {
         Label("Paste Base64 PSBT", systemImage: "doc.on.clipboard")
           .font(.hbBody(14))
@@ -57,6 +64,19 @@ struct PSBTScanView: View {
         }
       }
       Button("Cancel", role: .cancel) {}
+    }
+    .fileImporter(
+      isPresented: $showImportFile,
+      allowedContentTypes: [.data, .plainText],
+      allowsMultipleSelection: false
+    ) { result in
+      if case let .success(urls) = result, let url = urls.first {
+        guard url.startAccessingSecurityScopedResource() else { return }
+        defer { url.stopAccessingSecurityScopedResource() }
+        if let data = try? Data(contentsOf: url) {
+          Task { await viewModel.handleSignedPSBT(data, modelContext: modelContext) }
+        }
+      }
     }
   }
 }

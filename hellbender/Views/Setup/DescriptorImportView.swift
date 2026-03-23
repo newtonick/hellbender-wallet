@@ -74,6 +74,14 @@ struct DescriptorImportView: View {
         .hbCard()
         .padding(.horizontal, 24)
 
+        if let mismatchError = viewModel.descriptorNetworkMismatchError {
+          Text(mismatchError)
+            .font(.hbLabel(13))
+            .foregroundStyle(Color.hbError)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+        }
+
         // Electrum server
         ElectrumServerSetupSection(viewModel: viewModel)
           .padding(.horizontal, 24)
@@ -92,15 +100,16 @@ struct DescriptorImportView: View {
           Spacer()
 
           Button(action: { viewModel.goToNext() }) {
+            let canImport = !viewModel.importedDescriptorText.isEmpty && viewModel.descriptorNetworkMismatchError == nil
             Text("Import")
               .font(.hbHeadline)
               .foregroundStyle(.white)
               .padding(.horizontal, 32)
               .padding(.vertical, 14)
-              .background(!viewModel.importedDescriptorText.isEmpty ? Color.hbBitcoinOrange : Color.hbBorder)
+              .background(canImport ? Color.hbBitcoinOrange : Color.hbBorder)
               .clipShape(RoundedRectangle(cornerRadius: 12))
           }
-          .disabled(viewModel.importedDescriptorText.isEmpty)
+          .disabled(viewModel.importedDescriptorText.isEmpty || viewModel.descriptorNetworkMismatchError != nil)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 32)

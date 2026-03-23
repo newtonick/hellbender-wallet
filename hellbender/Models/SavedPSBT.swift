@@ -21,6 +21,7 @@ final class SavedPSBT {
   var manualUTXOSelection: Bool
   var selectedUTXOIds: String
   var inputOutpoints: String // Comma-separated "txid:vout" of PSBT inputs
+  var originalTxid: String? // Non-nil for RBF (bump fee) PSBTs — the txid being replaced
 
   static let maxNameLength = 100
 

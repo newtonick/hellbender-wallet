@@ -1,8 +1,10 @@
 import Foundation
 import Observation
+import SwiftData
 
 @Observable
-final class BumpFeeViewModel {
+final class BumpFeeViewModel: Identifiable {
+  let id = UUID()
   enum Step {
     case feeInput
     case psbtDisplay
@@ -29,6 +31,19 @@ final class BumpFeeViewModel {
   var signaturesCollected: Int = 0
   var requiredSignatures: Int = 2
   var signerStatus: [(label: String, fingerprint: String, hasSigned: Bool)] = []
+
+  // Transaction detail state (populated from createBumpFeePSBT result)
+  var totalFee: UInt64 = 0
+  var changeAmount: UInt64?
+  var changeAddress: String?
+  var inputCount: Int = 0
+
+  // Saved PSBT state
+  var savedPSBTId: UUID?
+  var savedPSBTName: String = ""
+  var totalCosigners: Int = 1
+  var showSavePSBT: Bool = false
+  var showSavedConfirmation: Bool = false
 
   // Broadcast state
   var broadcastTxid: String = ""
@@ -87,9 +102,38 @@ final class BumpFeeViewModel {
     originalFeeRate = transaction.currentFeeRate
     self.bitcoinService = bitcoinService
     requiredSignatures = bitcoinService.requiredSignatures
+    totalCosigners = bitcoinService.totalCosigners
     // Pre-fill custom with the minimum valid bump rate
     let minRate = (originalFeeRate.map { Double($0) } ?? 0.0) + 1.0
     newFeeRate = BumpFeeViewModel.formatRate(max(minRate, 1.0))
+  }
+
+  /// Initialize from a saved RBF PSBT to resume signing
+  init(savedPSBT: SavedPSBT, bitcoinService: any BitcoinServiceProtocol = BitcoinService.shared) {
+    originalTxid = savedPSBT.originalTxid ?? ""
+    originalFee = 0
+    originalFeeRate = nil
+    self.bitcoinService = bitcoinService
+    requiredSignatures = savedPSBT.requiredSignatures
+    totalCosigners = bitcoinService.totalCosigners
+    newFeeRate = savedPSBT.feeRateSatVb
+    psbtBytes = savedPSBT.psbtBytes
+    psbtBase64 = savedPSBT.psbtBase64
+    totalFee = savedPSBT.totalFee
+    changeAmount = savedPSBT.changeAmount
+    changeAddress = savedPSBT.changeAddress
+    inputCount = savedPSBT.inputCount
+    savedPSBTId = savedPSBT.id
+    savedPSBTName = savedPSBT.name
+
+    if let signerInfo = bitcoinService.psbtSignerInfo(savedPSBT.psbtBytes) {
+      signaturesCollected = signerInfo.totalSignatures
+      signerStatus = signerInfo.cosignerSignStatus
+    } else {
+      signaturesCollected = savedPSBT.signaturesCollected
+    }
+
+    currentStep = .psbtDisplay
   }
 
   func fetchFeeRates() async {
@@ -117,6 +161,10 @@ final class BumpFeeViewModel {
       )
       psbtBase64 = result.base64
       psbtBytes = result.bytes
+      totalFee = result.fee
+      changeAmount = result.changeAmount
+      changeAddress = result.changeAddress
+      inputCount = result.inputCount
       signaturesCollected = 0
       if let signerInfo = bitcoinService.psbtSignerInfo(result.bytes) {
         signerStatus = signerInfo.cosignerSignStatus
@@ -128,7 +176,7 @@ final class BumpFeeViewModel {
     isProcessing = false
   }
 
-  func handleSignedPSBT(_ signedBytes: Data) async {
+  func handleSignedPSBT(_ signedBytes: Data, modelContext: ModelContext? = nil) async {
     isProcessing = true
     do {
       let previousBytes = psbtBytes
@@ -145,6 +193,11 @@ final class BumpFeeViewModel {
         signerStatus = signerInfo.cosignerSignStatus
       } else if updatedBytes != previousBytes {
         signaturesCollected += 1
+      }
+
+      // Auto-save after each new signature, matching normal send flow
+      if updatedBytes != previousBytes, let context = modelContext {
+        autoSavePSBT(context: context)
       }
 
       if needsMoreSignatures {
@@ -166,11 +219,15 @@ final class BumpFeeViewModel {
     }
   }
 
-  func broadcast() async {
+  func broadcast(modelContext: ModelContext? = nil) async {
     isProcessing = true
     do {
       let txid = try await bitcoinService.broadcastPSBT(psbtBytes)
       broadcastTxid = txid
+      // Clean up saved PSBT after successful broadcast
+      if let context = modelContext {
+        deleteSavedPSBT(context: context)
+      }
       // Trigger sync after broadcast
       Task {
         try? await bitcoinService.sync()
@@ -179,5 +236,80 @@ final class BumpFeeViewModel {
       errorMessage = error.localizedDescription
     }
     isProcessing = false
+  }
+
+  // MARK: - Saved PSBT
+
+  func defaultPSBTName() -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "MMM d, yyyy h:mm a"
+    return "Bump Fee " + formatter.string(from: Date())
+  }
+
+  func autoSavePSBT(context: ModelContext) {
+    if savedPSBTId != nil {
+      savePSBT(name: savedPSBTName.isEmpty ? defaultPSBTName() : savedPSBTName, context: context)
+    } else if totalCosigners > 1 {
+      savePSBT(name: defaultPSBTName(), context: context)
+    }
+  }
+
+  func savePSBT(name: String, context: ModelContext) {
+    guard let walletID = BitcoinService.shared.currentProfile?.id else { return }
+
+    let trimmedName = String(name.prefix(SavedPSBT.maxNameLength))
+    let outpoints = bitcoinService.psbtInputOutpoints(psbtBytes).joined(separator: ",")
+
+    if let existingId = savedPSBTId {
+      let descriptor = FetchDescriptor<SavedPSBT>(predicate: #Predicate { $0.id == existingId })
+      if let existing = try? context.fetch(descriptor).first {
+        existing.name = trimmedName
+        existing.psbtBytes = psbtBytes
+        existing.psbtBase64 = psbtBase64
+        existing.signaturesCollected = signaturesCollected
+        existing.updatedAt = Date()
+        existing.feeRateSatVb = newFeeRate
+        existing.totalFee = totalFee
+        existing.changeAmount = changeAmount
+        existing.changeAddress = changeAddress
+        existing.inputCount = inputCount
+        existing.inputOutpoints = outpoints
+        try? context.save()
+        return
+      }
+    }
+
+    let saved = SavedPSBT(
+      walletID: walletID,
+      name: trimmedName,
+      psbtBytes: psbtBytes,
+      psbtBase64: psbtBase64,
+      signaturesCollected: signaturesCollected,
+      requiredSignatures: requiredSignatures,
+      recipientsJSON: Data(),
+      feeRateSatVb: newFeeRate,
+      totalFee: totalFee,
+      changeAmount: changeAmount,
+      changeAddress: changeAddress,
+      inputCount: inputCount,
+      manualUTXOSelection: false,
+      selectedUTXOIds: "",
+      inputOutpoints: outpoints
+    )
+    saved.originalTxid = originalTxid
+    context.insert(saved)
+    try? context.save()
+    savedPSBTId = saved.id
+    savedPSBTName = trimmedName
+  }
+
+  func deleteSavedPSBT(context: ModelContext) {
+    guard let existingId = savedPSBTId else { return }
+    let descriptor = FetchDescriptor<SavedPSBT>(predicate: #Predicate { $0.id == existingId })
+    if let existing = try? context.fetch(descriptor).first {
+      context.delete(existing)
+      try? context.save()
+    }
+    savedPSBTId = nil
   }
 }

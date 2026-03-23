@@ -51,6 +51,7 @@ struct PSBTDisplayView: View {
   @State private var showRestartAlert = false
   @State private var showExitConfirmation = false
   @State private var showBackConfirmation = false
+  @State private var showExportFile = false
   @State private var qrDisplayHeight: CGFloat = 700
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
 
@@ -199,12 +200,10 @@ struct PSBTDisplayView: View {
         .padding(.horizontal, 24)
 
         HStack(spacing: 24) {
-          Button(action: {
-            UIPasteboard.general.string = viewModel.psbtBase64
-          }) {
-            Label("Copy Base64", systemImage: "doc.on.doc")
+          Button(action: { showExportFile = true }) {
+            Label("Export PSBT File", systemImage: "square.and.arrow.up")
               .font(.hbBody(14))
-              .foregroundStyle(Color.hbSteelBlue)
+              .foregroundStyle(Color.hbBitcoinOrange)
           }
 
           Button(action: {
@@ -220,6 +219,14 @@ struct PSBTDisplayView: View {
               .font(.hbBody(14))
               .foregroundStyle(Color.hbBitcoinOrange)
           }
+        }
+
+        Button(action: {
+          UIPasteboard.general.string = viewModel.psbtBase64
+        }) {
+          Label("Copy Base64", systemImage: "doc.on.doc")
+            .font(.hbBody(14))
+            .foregroundStyle(Color.hbSteelBlue)
         }
 
         // Transaction details
@@ -310,6 +317,12 @@ struct PSBTDisplayView: View {
       }
     }
     .animation(.easeInOut, value: viewModel.showSavedConfirmation)
+    .fileExporter(
+      isPresented: $showExportFile,
+      document: PSBTFileDocument(data: viewModel.psbtBytes),
+      contentType: .data,
+      defaultFilename: "transaction.psbt"
+    ) { _ in }
   }
 }
 

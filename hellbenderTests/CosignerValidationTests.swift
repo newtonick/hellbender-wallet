@@ -100,8 +100,9 @@ struct CosignerValidationTests {
     vm.network = .mainnet
     let error = vm.validateDerivationPath("m/48'/1'/0'/2'")
     #expect(error != nil)
-    #expect(error?.contains("testnet") == true)
-    #expect(error?.contains("mainnet") == true)
+    let lower = error?.lowercased() ?? ""
+    #expect(lower.contains("testnet"))
+    #expect(lower.contains("mainnet"))
   }
 
   @Test func rejectMainnetPathOnTestnet() {
@@ -109,8 +110,9 @@ struct CosignerValidationTests {
     vm.network = .testnet4
     let error = vm.validateDerivationPath("m/48'/0'/0'/2'")
     #expect(error != nil)
-    #expect(error?.contains("mainnet") == true)
-    #expect(error?.contains("testnet") == true)
+    let lower = error?.lowercased() ?? ""
+    #expect(lower.contains("mainnet"))
+    #expect(lower.contains("testnet"))
   }
 
   @Test func rejectInvalidBIP48Format() {

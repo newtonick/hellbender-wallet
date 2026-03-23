@@ -49,6 +49,23 @@ final class SetupWizardViewModel {
   var electrumPort: String = ""
   var electrumSSL: Int = 0 // 0 = network default, 1 = TCP, 2 = SSL
 
+  /// Returns an error message if the descriptor contains keys that don't match the selected network, nil otherwise.
+  var descriptorNetworkMismatchError: String? {
+    let text = importedDescriptorText
+    guard !text.isEmpty else { return nil }
+
+    let hasTestnetKeys = text.contains("tpub") || text.contains("Vpub")
+    let hasMainnetKeys = text.contains("xpub") || text.contains("Zpub")
+
+    if network == .mainnet && hasTestnetKeys && !hasMainnetKeys {
+      return "Testnet descriptors cannot be used on mainnet"
+    }
+    if network != .mainnet && hasMainnetKeys && !hasTestnetKeys {
+      return "Mainnet descriptors cannot be used on testnet/signet"
+    }
+    return nil
+  }
+
   var isElectrumHostRequired: Bool {
     network.defaultElectrumHost == nil
   }

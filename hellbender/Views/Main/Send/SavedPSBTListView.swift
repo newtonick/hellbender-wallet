@@ -4,6 +4,7 @@ import SwiftUI
 
 struct SavedPSBTListView: View {
   @Bindable var viewModel: SendViewModel
+  var onLoadBumpFeePSBT: ((SavedPSBT) -> Void)?
   @Environment(\.dismiss) private var dismiss
   @Environment(\.modelContext) private var modelContext
   @Query(sort: \SavedPSBT.updatedAt, order: .reverse) private var allSavedPSBTs: [SavedPSBT]
@@ -34,7 +35,11 @@ struct SavedPSBTListView: View {
           List {
             ForEach(savedPSBTs) { saved in
               Button(action: {
-                viewModel.loadSavedPSBT(saved)
+                if saved.originalTxid != nil {
+                  onLoadBumpFeePSBT?(saved)
+                } else {
+                  viewModel.loadSavedPSBT(saved)
+                }
                 dismiss()
               }) {
                 HStack(spacing: 12) {
@@ -42,9 +47,21 @@ struct SavedPSBTListView: View {
                     .frame(width: 36, height: 36)
 
                   VStack(alignment: .leading, spacing: 6) {
-                    Text(saved.name)
-                      .font(.hbBody(15))
-                      .foregroundStyle(Color.hbTextPrimary)
+                    HStack(spacing: 6) {
+                      Text(saved.name)
+                        .font(.hbBody(15))
+                        .foregroundStyle(Color.hbTextPrimary)
+
+                      if saved.originalTxid != nil {
+                        Text("RBF")
+                          .font(.hbLabel(10))
+                          .foregroundStyle(.white)
+                          .padding(.horizontal, 5)
+                          .padding(.vertical, 2)
+                          .background(Color.hbBitcoinOrange)
+                          .clipShape(RoundedRectangle(cornerRadius: 4))
+                      }
+                    }
 
                     HStack(spacing: 12) {
                       if let signerInfo = BitcoinService.shared.psbtSignerInfo(saved.psbtBytes) {

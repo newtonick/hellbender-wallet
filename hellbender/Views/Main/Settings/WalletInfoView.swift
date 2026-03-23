@@ -78,13 +78,29 @@ struct WalletInfoView: View {
         Button(action: { showDescriptorQR = true }) {
           HStack(spacing: 8) {
             Image(systemName: "qrcode")
-            Text("Show Descriptor QR")
+            Text("Show Output Descriptor QR")
               .font(.hbBody(15))
           }
           .foregroundStyle(Color.hbBitcoinOrange)
           .frame(maxWidth: .infinity)
           .padding(.vertical, 14)
           .background(Color.hbBitcoinOrange.opacity(0.12))
+          .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+
+        // Copy descriptor
+        Button(action: {
+          UIPasteboard.general.string = combinedDescriptor
+        }) {
+          HStack(spacing: 8) {
+            Image(systemName: "doc.on.doc")
+            Text("Copy Output Descriptor")
+              .font(.hbBody(15))
+          }
+          .foregroundStyle(Color.hbSteelBlue)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 14)
+          .background(Color.hbSteelBlue.opacity(0.12))
           .clipShape(RoundedRectangle(cornerRadius: 10))
         }
 

@@ -4,9 +4,11 @@ import UniformTypeIdentifiers
 
 struct SendFlowView: View {
   @Binding var selectedTab: Int
+  @Binding var resumePSBT: SavedPSBT?
   @State private var viewModel = SendViewModel()
   @Query private var frozenUTXOs: [FrozenUTXO]
   @Environment(\.modelContext) private var modelContext
+  @State private var bumpFeeViewModel: BumpFeeViewModel?
   var body: some View {
     NavigationStack {
       ZStack {
@@ -71,6 +73,10 @@ struct SendFlowView: View {
     .onAppear {
       loadFrozenOutpoints()
       viewModel.loadBalance()
+      if let saved = resumePSBT {
+        viewModel.loadSavedPSBT(saved)
+        resumePSBT = nil
+      }
     }
     .onChange(of: frozenUTXOs.count) {
       loadFrozenOutpoints()
@@ -81,8 +87,19 @@ struct SendFlowView: View {
       loadFrozenOutpoints()
       viewModel.loadBalance()
     }
+    .onChange(of: resumePSBT) { _, saved in
+      if let saved {
+        viewModel.loadSavedPSBT(saved)
+        resumePSBT = nil
+      }
+    }
     .sheet(isPresented: $viewModel.showLoadPSBT) {
-      SavedPSBTListView(viewModel: viewModel)
+      SavedPSBTListView(viewModel: viewModel) { savedPSBT in
+        bumpFeeViewModel = BumpFeeViewModel(savedPSBT: savedPSBT)
+      }
+    }
+    .sheet(item: $bumpFeeViewModel) { vm in
+      BumpFeeView(viewModel: vm)
     }
     .sheet(isPresented: $viewModel.showImportPSBTQR) {
       ImportPSBTQRSheet(viewModel: viewModel)

@@ -480,6 +480,14 @@ final class BitcoinService {
         // If any input is no longer in the UTXO set, the PSBT is stale
         let hasSpentInput = inputOutpoints.contains { !currentOutpoints.contains($0) }
         if hasSpentInput {
+          // RBF PSBTs spend the same inputs as the original transaction.
+          // Don't prune if the original transaction is still unconfirmed (replaceable).
+          if let originalTxid = saved.originalTxid,
+             let originalTx = transactions.first(where: { $0.id == originalTxid }),
+             !originalTx.isConfirmed
+          {
+            continue
+          }
           addToLog("Pruning stale saved PSBT '\(saved.name)': input spent")
           context.delete(saved)
         }

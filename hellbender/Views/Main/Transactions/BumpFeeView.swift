@@ -42,6 +42,7 @@ struct BumpFeeView: View {
 
 private struct BumpFeeInputView: View {
   @Bindable var viewModel: BumpFeeViewModel
+  @Environment(\.modelContext) private var modelContext
 
   var body: some View {
     ScrollView {
@@ -73,7 +74,12 @@ private struct BumpFeeInputView: View {
         BumpFeeRateCard(viewModel: viewModel)
 
         Button(action: {
-          Task { await viewModel.createBumpPSBT() }
+          Task {
+            await viewModel.createBumpPSBT()
+            if !viewModel.psbtBytes.isEmpty, viewModel.errorMessage == nil {
+              viewModel.autoSavePSBT(context: modelContext)
+            }
+          }
         }) {
           if viewModel.isProcessing {
             ProgressView()
@@ -249,7 +255,9 @@ private struct BumpFeeRateCard: View {
 
 private struct BumpFeePSBTDisplayView: View {
   @Bindable var viewModel: BumpFeeViewModel
+  @Environment(\.modelContext) private var modelContext
   @State private var showAdvanced = false
+  @State private var showExportFile = false
   @State private var framesPerSecond: Double = 4.0
   @State private var qrEncoding: QREncoding = .ur
   @State private var qrDensity: QRDensity = .medium
@@ -369,6 +377,28 @@ private struct BumpFeePSBTDisplayView: View {
         }
         .padding(.horizontal, 24)
 
+        HStack(spacing: 24) {
+          Button(action: { showExportFile = true }) {
+            Label("Export PSBT File", systemImage: "square.and.arrow.up")
+              .font(.hbBody(14))
+              .foregroundStyle(Color.hbBitcoinOrange)
+          }
+
+          Button(action: {
+            if viewModel.savedPSBTId != nil {
+              viewModel.savePSBT(name: viewModel.savedPSBTName.isEmpty ? viewModel.defaultPSBTName() : viewModel.savedPSBTName, context: modelContext)
+              viewModel.showSavedConfirmation = true
+            } else {
+              viewModel.savedPSBTName = viewModel.defaultPSBTName()
+              viewModel.showSavePSBT = true
+            }
+          }) {
+            Label("Save PSBT", systemImage: "tray.and.arrow.down.fill")
+              .font(.hbBody(14))
+              .foregroundStyle(Color.hbBitcoinOrange)
+          }
+        }
+
         Button(action: {
           UIPasteboard.general.string = viewModel.psbtBase64
         }) {
@@ -381,6 +411,45 @@ private struct BumpFeePSBTDisplayView: View {
       .padding(.top, 8)
     }
     .background(Color.hbBackground)
+    .alert("Save PSBT", isPresented: $viewModel.showSavePSBT) {
+      TextField("Name", text: $viewModel.savedPSBTName)
+      Button("Save") {
+        let name = viewModel.savedPSBTName.isEmpty ? viewModel.defaultPSBTName() : viewModel.savedPSBTName
+        viewModel.savePSBT(name: name, context: modelContext)
+        viewModel.showSavedConfirmation = true
+      }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("Enter a name for this PSBT")
+    }
+    .overlay {
+      if viewModel.showSavedConfirmation {
+        VStack(spacing: 8) {
+          Image(systemName: "checkmark.circle.fill")
+            .font(.system(size: 32))
+            .foregroundStyle(Color.hbSuccess)
+          Text("PSBT Saved")
+            .font(.hbBody(16))
+            .foregroundStyle(Color.hbTextPrimary)
+        }
+        .padding(24)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .transition(.opacity)
+        .onAppear {
+          DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation { viewModel.showSavedConfirmation = false }
+          }
+        }
+      }
+    }
+    .animation(.easeInOut, value: viewModel.showSavedConfirmation)
+    .fileExporter(
+      isPresented: $showExportFile,
+      document: PSBTFileDocument(data: viewModel.psbtBytes),
+      contentType: .data,
+      defaultFilename: "transaction.psbt"
+    ) { _ in }
   }
 }
 
@@ -388,7 +457,9 @@ private struct BumpFeePSBTDisplayView: View {
 
 private struct BumpFeePSBTScanView: View {
   @Bindable var viewModel: BumpFeeViewModel
+  @Environment(\.modelContext) private var modelContext
   @State private var showManualInput = false
+  @State private var showImportFile = false
   @State private var manualPSBTBase64 = ""
 
   var body: some View {
@@ -404,13 +475,19 @@ private struct BumpFeePSBTScanView: View {
 
       URScannerSheet { result in
         if case let .psbt(data) = result {
-          Task { await viewModel.handleSignedPSBT(data) }
+          Task { await viewModel.handleSignedPSBT(data, modelContext: modelContext) }
         }
       }
       .aspectRatio(1, contentMode: .fit)
       .frame(maxHeight: 500)
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .padding(.horizontal, 24)
+
+      Button(action: { showImportFile = true }) {
+        Label("Import PSBT File", systemImage: "doc.badge.arrow.up")
+          .font(.hbBody(14))
+          .foregroundStyle(Color.hbBitcoinOrange)
+      }
 
       Button(action: { showManualInput = true }) {
         Label("Paste Base64 PSBT", systemImage: "doc.on.clipboard")
@@ -433,10 +510,23 @@ private struct BumpFeePSBTScanView: View {
       TextField("Base64 PSBT", text: $manualPSBTBase64)
       Button("Import") {
         if let data = Data(base64Encoded: manualPSBTBase64) {
-          Task { await viewModel.handleSignedPSBT(data) }
+          Task { await viewModel.handleSignedPSBT(data, modelContext: modelContext) }
         }
       }
       Button("Cancel", role: .cancel) {}
+    }
+    .fileImporter(
+      isPresented: $showImportFile,
+      allowedContentTypes: [.data, .plainText],
+      allowsMultipleSelection: false
+    ) { result in
+      if case let .success(urls) = result, let url = urls.first {
+        guard url.startAccessingSecurityScopedResource() else { return }
+        defer { url.stopAccessingSecurityScopedResource() }
+        if let data = try? Data(contentsOf: url) {
+          Task { await viewModel.handleSignedPSBT(data, modelContext: modelContext) }
+        }
+      }
     }
   }
 }
@@ -445,6 +535,7 @@ private struct BumpFeePSBTScanView: View {
 
 private struct BumpFeeBroadcastView: View {
   @Bindable var viewModel: BumpFeeViewModel
+  @Environment(\.modelContext) private var modelContext
   let dismiss: DismissAction
 
   var body: some View {
@@ -468,7 +559,7 @@ private struct BumpFeeBroadcastView: View {
           .padding(.horizontal, 32)
 
         Button(action: {
-          Task { await viewModel.broadcast() }
+          Task { await viewModel.broadcast(modelContext: modelContext) }
         }) {
           if viewModel.isProcessing {
             ProgressView()

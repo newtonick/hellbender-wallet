@@ -17,6 +17,7 @@ final class WalletProfile {
   var electrumPort: Int
   var electrumSSL: Int // 0 = network default, 1 = TCP, 2 = SSL
   var blockExplorerHost: String // empty = mempool.space
+  var privacyMode: Bool = false
 
   @Relationship(deleteRule: .cascade, inverse: \CosignerInfo.wallet)
   var cosigners: [CosignerInfo]
@@ -34,7 +35,8 @@ final class WalletProfile {
     electrumHost: String = "",
     electrumPort: Int = 0,
     electrumSSL: Int = 0,
-    blockExplorerHost: String = ""
+    blockExplorerHost: String = "",
+    privacyMode: Bool = false
   ) {
     self.id = id
     self.name = name
@@ -50,6 +52,7 @@ final class WalletProfile {
     self.electrumPort = electrumPort
     self.electrumSSL = electrumSSL
     self.blockExplorerHost = blockExplorerHost
+    self.privacyMode = privacyMode
     cosigners = []
   }
 

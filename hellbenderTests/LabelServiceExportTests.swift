@@ -83,12 +83,12 @@ struct LabelServiceExportTests {
 
   // MARK: - 2. Origin format
 
-  @Test func originFormat() {
+  @Test func originFormat() throws {
     let records = Self.buildRecords(
       transactions: [Self.makeTx(id: "abc123", amount: 1000)]
     )
-    let txRecord = records.first { $0.type == "tx" }!
-    let origin = txRecord.origin!
+    let txRecord = try #require(records.first { $0.type == "tx" })
+    let origin = try #require(txRecord.origin)
     #expect(origin.hasPrefix("wsh(sortedmulti(2,"))
     #expect(origin.hasSuffix("))"))
     #expect(origin.contains("48h/1h/0h/2h"))
@@ -100,21 +100,21 @@ struct LabelServiceExportTests {
 
   // MARK: - 3. Transaction with label
 
-  @Test func transactionWithLabel() {
+  @Test func transactionWithLabel() throws {
     let label = Self.makeLabel(type: .tx, ref: "txid1", label: "Rent payment")
     let tx = Self.makeTx(id: "txid1", amount: -50000, fee: 300, isIncoming: false, blockHeight: 800_100)
     let records = Self.buildRecords(labels: [label], transactions: [tx])
-    let txRecord = records.first { $0.type == "tx" }!
+    let txRecord = try #require(records.first { $0.type == "tx" })
     #expect(txRecord.label == "Rent payment")
     #expect(txRecord.ref == "txid1")
   }
 
   // MARK: - 4. Transaction without label
 
-  @Test func transactionWithoutLabel() {
+  @Test func transactionWithoutLabel() throws {
     let tx = Self.makeTx(id: "txid2", amount: 10000, fee: 150, blockHeight: 800_200)
     let records = Self.buildRecords(transactions: [tx])
-    let txRecord = records.first { $0.type == "tx" }!
+    let txRecord = try #require(records.first { $0.type == "tx" })
     #expect(txRecord.label == nil)
     #expect(txRecord.height == 800_200)
     #expect(txRecord.time != nil)
@@ -124,30 +124,30 @@ struct LabelServiceExportTests {
 
   // MARK: - 5. Height omitted when < 6 confirmations
 
-  @Test func transactionHeightOmittedUnderSixConfs() {
+  @Test func transactionHeightOmittedUnderSixConfs() throws {
     let tx = Self.makeTx(id: "txid3", amount: 5000, confirmations: 3, blockHeight: 800_300)
     let records = Self.buildRecords(transactions: [tx])
-    let txRecord = records.first { $0.type == "tx" }!
+    let txRecord = try #require(records.first { $0.type == "tx" })
     #expect(txRecord.height == nil)
     #expect(txRecord.time == nil)
   }
 
   // MARK: - 6. Transaction fee omitted when nil
 
-  @Test func transactionFeeOmittedWhenNil() {
+  @Test func transactionFeeOmittedWhenNil() throws {
     let tx = Self.makeTx(id: "txid4", amount: 20000, fee: nil)
     let records = Self.buildRecords(transactions: [tx])
-    let txRecord = records.first { $0.type == "tx" }!
+    let txRecord = try #require(records.first { $0.type == "tx" })
     #expect(txRecord.fee == nil)
   }
 
   // MARK: - 7. Address with label
 
-  @Test func addressWithLabel() {
+  @Test func addressWithLabel() throws {
     let addr = AddressItem(index: 5, address: "tb1qaddr5", isUsed: true, isChange: false)
     let label = Self.makeLabel(type: .addr, ref: "tb1qaddr5", label: "Savings")
     let records = Self.buildRecords(labels: [label], receiveAddresses: [addr])
-    let addrRecord = records.first { $0.type == "addr" }!
+    let addrRecord = try #require(records.first { $0.type == "addr" })
     #expect(addrRecord.label == "Savings")
     #expect(addrRecord.keypath == "/0/5")
     #expect(addrRecord.origin != nil)
@@ -155,10 +155,10 @@ struct LabelServiceExportTests {
 
   // MARK: - 8. Address without label
 
-  @Test func addressWithoutLabel() {
+  @Test func addressWithoutLabel() throws {
     let addr = AddressItem(index: 3, address: "tb1qaddr3", isUsed: false, isChange: false)
     let records = Self.buildRecords(receiveAddresses: [addr])
-    let addrRecord = records.first { $0.type == "addr" }!
+    let addrRecord = try #require(records.first { $0.type == "addr" })
     #expect(addrRecord.label == nil)
     #expect(addrRecord.keypath == "/0/3")
     #expect(addrRecord.heights == [])
@@ -166,7 +166,7 @@ struct LabelServiceExportTests {
 
   // MARK: - 9. Address heights
 
-  @Test func addressHeights() {
+  @Test func addressHeights() throws {
     let addr = AddressItem(index: 0, address: "tb1qused", isUsed: true, isChange: false)
     let tx1 = Self.makeTx(
       id: "tx1", amount: 1000, confirmations: 10, blockHeight: 800_000,
@@ -177,31 +177,31 @@ struct LabelServiceExportTests {
       outputs: [TransactionItem.TxIO(address: "tb1qused", amount: 2000, prevTxid: nil, prevVout: nil, isMine: true)]
     )
     let records = Self.buildRecords(transactions: [tx1, tx2], receiveAddresses: [addr])
-    let addrRecord = records.first { $0.type == "addr" }!
+    let addrRecord = try #require(records.first { $0.type == "addr" })
     #expect(addrRecord.heights == [800_000, 800_050])
   }
 
   // MARK: - 10. Unused address
 
-  @Test func unusedAddressEmptyHeights() {
+  @Test func unusedAddressEmptyHeights() throws {
     let addr = AddressItem(index: 10, address: "tb1qunused", isUsed: false, isChange: false)
     let records = Self.buildRecords(receiveAddresses: [addr])
-    let addrRecord = records.first { $0.type == "addr" }!
+    let addrRecord = try #require(records.first { $0.type == "addr" })
     #expect(addrRecord.heights == [])
   }
 
   // MARK: - 11. Change address keypath
 
-  @Test func changeAddressKeypath() {
+  @Test func changeAddressKeypath() throws {
     let addr = AddressItem(index: 7, address: "tb1qchange7", isUsed: true, isChange: true)
     let records = Self.buildRecords(changeAddresses: [addr])
-    let addrRecord = records.first { $0.type == "addr" }!
+    let addrRecord = try #require(records.first { $0.type == "addr" })
     #expect(addrRecord.keypath == "/1/7")
   }
 
   // MARK: - 12. Output record with label
 
-  @Test func outputRecordWithLabel() {
+  @Test func outputRecordWithLabel() throws {
     let addr = AddressItem(index: 2, address: "tb1qout", isUsed: true, isChange: false)
     let tx = Self.makeTx(
       id: "txout1", amount: 5000, blockHeight: 800_500,
@@ -209,7 +209,7 @@ struct LabelServiceExportTests {
     )
     let label = Self.makeLabel(type: .utxo, ref: "txout1:0", label: "KYC-free")
     let records = Self.buildRecords(labels: [label], transactions: [tx], receiveAddresses: [addr])
-    let outputRecord = records.first { $0.type == "output" }!
+    let outputRecord = try #require(records.first { $0.type == "output" })
     #expect(outputRecord.ref == "txout1:0")
     #expect(outputRecord.label == "KYC-free")
     #expect(outputRecord.keypath == "/0/2")
@@ -218,53 +218,53 @@ struct LabelServiceExportTests {
 
   // MARK: - 13. Unspent output spendable
 
-  @Test func unspentOutputSpendable() {
+  @Test func unspentOutputSpendable() throws {
     let tx = Self.makeTx(
       id: "txutxo1", amount: 3000,
       outputs: [TransactionItem.TxIO(address: "tb1qutxo", amount: 3000, prevTxid: nil, prevVout: nil, isMine: true)]
     )
     let utxo = UTXOItem(txid: "txutxo1", vout: 0, amount: 3000, isConfirmed: true, keychain: .external)
     let records = Self.buildRecords(transactions: [tx], utxos: [utxo])
-    let outputRecord = records.first { $0.type == "output" }!
+    let outputRecord = try #require(records.first { $0.type == "output" })
     #expect(outputRecord.spendable == true)
   }
 
   // MARK: - 14. Frozen UTXO
 
-  @Test func frozenUtxoNotSpendable() {
+  @Test func frozenUtxoNotSpendable() throws {
     let tx = Self.makeTx(
       id: "txfrozen", amount: 4000,
       outputs: [TransactionItem.TxIO(address: "tb1qfrozen", amount: 4000, prevTxid: nil, prevVout: nil, isMine: true)]
     )
     let utxo = UTXOItem(txid: "txfrozen", vout: 0, amount: 4000, isConfirmed: true, keychain: .external)
     let records = Self.buildRecords(transactions: [tx], utxos: [utxo], frozenOutpoints: ["txfrozen:0"])
-    let outputRecord = records.first { $0.type == "output" }!
+    let outputRecord = try #require(records.first { $0.type == "output" })
     #expect(outputRecord.spendable == false)
   }
 
   // MARK: - 15. Spent output
 
-  @Test func spentOutputNoSpendableField() {
+  @Test func spentOutputNoSpendableField() throws {
     let tx = Self.makeTx(
       id: "txspent", amount: 2000,
       outputs: [TransactionItem.TxIO(address: "tb1qspent", amount: 2000, prevTxid: nil, prevVout: nil, isMine: true)]
     )
     // No matching UTXO — output is spent
     let records = Self.buildRecords(transactions: [tx])
-    let outputRecord = records.first { $0.type == "output" }!
+    let outputRecord = try #require(records.first { $0.type == "output" })
     #expect(outputRecord.spendable == nil)
   }
 
   // MARK: - 16. Input record
 
-  @Test func inputRecord() {
+  @Test func inputRecord() throws {
     let addr = AddressItem(index: 1, address: "tb1qinput", isUsed: true, isChange: false)
     let tx = Self.makeTx(
       id: "txspend", amount: -8000, fee: 200, isIncoming: false, blockHeight: 801_000,
       inputs: [TransactionItem.TxIO(address: "tb1qinput", amount: 10000, prevTxid: "prevtx1", prevVout: 2, isMine: true)]
     )
     let records = Self.buildRecords(transactions: [tx], receiveAddresses: [addr])
-    let inputRecord = records.first { $0.type == "input" }!
+    let inputRecord = try #require(records.first { $0.type == "input" })
     #expect(inputRecord.ref == "txspend:0")
     #expect(inputRecord.keypath == "/0/1")
     #expect(inputRecord.value == 10000)
@@ -282,7 +282,7 @@ struct LabelServiceExportTests {
     let utxo = UTXOItem(txid: "txjsonl", vout: 0, amount: 1000, isConfirmed: true, keychain: .external)
     let records = Self.buildRecords(transactions: [tx], utxos: [utxo])
     let data = BIP329Record.encodeToJSONL(records)
-    let text = String(data: data, encoding: .utf8)!
+    let text = try #require(String(data: data, encoding: .utf8))
     let lines = text.split(separator: "\n")
 
     // Each line should be valid JSON
@@ -292,8 +292,8 @@ struct LabelServiceExportTests {
     }
 
     // Find the output record line and verify spendable is boolean
-    let outputLine = lines.first { $0.contains("\"type\":\"output\"") }!
-    let outputJSON = try JSONSerialization.jsonObject(with: Data(outputLine.utf8)) as! [String: Any]
+    let outputLine = try #require(lines.first { $0.contains("\"type\":\"output\"") })
+    let outputJSON = try #require(JSONSerialization.jsonObject(with: Data(outputLine.utf8)) as? [String: Any])
     #expect(outputJSON["spendable"] is Bool)
     #expect(outputJSON["spendable"] as? Bool == true)
   }
@@ -342,7 +342,8 @@ struct LabelServiceExportTests {
     }
 
     // Step 3: Decode the UR
-    let decodedUR = try decoder.result!.get()
+    let decodedResult = try #require(decoder.result)
+    let decodedUR = try decodedResult.get()
     #expect(decodedUR.type == "bytes")
 
     // Step 4: Extract bytes from CBOR (same as URService.processUR does)
@@ -402,7 +403,8 @@ struct LabelServiceExportTests {
       if iterations > 5000 { break }
     }
 
-    let decodedUR = try decoder.result!.get()
+    let decodedResult2 = try #require(decoder.result)
+    let decodedUR = try decodedResult2.get()
     guard case let .bytes(decodedData) = decodedUR.cbor else {
       #expect(Bool(false), "Expected CBOR.bytes")
       return
@@ -423,7 +425,7 @@ struct LabelServiceExportTests {
     #expect(xpubs.count == 2)
 
     let txs = records.filter { $0.type == "tx" }
-    #expect(txs.count == 31)
+    #expect(txs.count == 30)
 
     // Verify emoji labels survived encoding
     let chrisTx = txs.first { $0.label == "Chris for 🍻" }

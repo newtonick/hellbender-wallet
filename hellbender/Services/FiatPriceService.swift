@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+import OSLog
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "FiatPriceService")
 
 enum FiatSource: String, CaseIterable {
   case zeus
@@ -22,6 +25,7 @@ final class FiatPriceService {
   private(set) var rates: [String: Double] = [:]
   private(set) var lastFetched: Date?
   private(set) var isFetching = false
+  private(set) var lastFetchError: String?
 
   private let zeusURL = "https://pay.zeusln.app/api/rates?storeId=Fjt7gLnGpg4UeBMFccLquy3GTTEz4cHU4PZMU63zqMBo"
   private let mempoolURL = "https://mempool.space/api/v1/prices"
@@ -172,6 +176,7 @@ final class FiatPriceService {
   func resetCache() {
     rates = [:]
     lastFetched = nil
+    lastFetchError = nil
   }
 
   func fetchRatesIfNeeded() async {
@@ -212,8 +217,10 @@ final class FiatPriceService {
       }
       rates = newRates
       lastFetched = Date()
+      lastFetchError = nil
     } catch {
-      print("Failed to fetch Zeus fiat rates: \(error)")
+      logger.error("Failed to fetch Zeus fiat rates: \(error.localizedDescription)")
+      lastFetchError = error.localizedDescription
     }
   }
 
@@ -232,8 +239,10 @@ final class FiatPriceService {
       if let v = decoded.JPY { newRates["JPY"] = v }
       rates = newRates
       lastFetched = Date()
+      lastFetchError = nil
     } catch {
-      print("Failed to fetch mempool.space fiat rates: \(error)")
+      logger.error("Failed to fetch mempool.space fiat rates: \(error.localizedDescription)")
+      lastFetchError = error.localizedDescription
     }
   }
 
@@ -249,8 +258,10 @@ final class FiatPriceService {
       }
       rates = newRates
       lastFetched = Date()
+      lastFetchError = nil
     } catch {
-      print("Failed to fetch CoinGecko fiat rates: \(error)")
+      logger.error("Failed to fetch CoinGecko fiat rates: \(error.localizedDescription)")
+      lastFetchError = error.localizedDescription
     }
   }
 }

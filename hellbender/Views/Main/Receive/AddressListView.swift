@@ -73,7 +73,9 @@ struct AddressListView: View {
     .background(Color.hbBackground)
     .navigationTitle("Addresses")
     .onAppear {
-      viewModel.loadAddresses()
+      if let profileId = BitcoinService.shared.currentProfile?.id {
+        viewModel.loadAddresses(for: profileId)
+      }
     }
   }
 

@@ -1,6 +1,9 @@
 import Bbqr
 import CoreImage.CIFilterBuiltins
+import OSLog
 import SwiftUI
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "BBQRDisplayView")
 
 struct BBQRDisplayView: View {
   let data: Data
@@ -65,7 +68,7 @@ struct BBQRDisplayView: View {
       frames = split.parts()
       qrImages = frames.compactMap { generateQRImage(from: $0) }
     } catch {
-      print("BBQRDisplayView: Failed to split data: \(error)")
+      logger.error("Failed to split BBQR data: \(error)")
     }
   }
 

@@ -8,35 +8,120 @@
 import XCTest
 
 final class hellbenderUITests: XCTestCase {
-  override func setUpWithError() throws {
-    // Put setup code here. This method is called before the invocation of each test method in the class.
+  var app: XCUIApplication!
 
-    // In UI tests it is usually best to stop immediately when a failure occurs.
+  override func setUpWithError() throws {
     continueAfterFailure = false
 
-    // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+    app = XCUIApplication()
+    app.launchArguments = ["-UITesting"]
   }
 
   override func tearDownWithError() throws {
-    // Put teardown code here. This method is called after the invocation of each test method in the class.
+    app = nil
   }
 
+  // MARK: - Wallet Setup via Descriptor Import
+
   @MainActor
-  func testExample() {
-    // UI tests must launch the application that they test.
-    let app = XCUIApplication()
+  func testSetupWalletViaDescriptorImport() {
     app.launch()
 
-    // Use XCTAssert and related functions to verify your tests produce the correct results.
-  }
+    // Step 1: Welcome screen — tap "Get Started"
+    let getStarted = app.buttons["Get Started"]
+    XCTAssertTrue(getStarted.waitForExistence(timeout: 5), "Welcome screen should show 'Get Started' button")
+    getStarted.tap()
 
-  @MainActor
-  func testLaunchPerformance() {
-    if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
-      // This measures how long it takes to launch your application.
-      measure(metrics: [XCTApplicationLaunchMetric()]) {
-        XCUIApplication().launch()
-      }
+    // Step 2: Creation choice — tap "Import Descriptor" card
+    let importCard = app.staticTexts["Import Descriptor"]
+    XCTAssertTrue(importCard.waitForExistence(timeout: 3), "Creation choice should show 'Import Descriptor' option")
+    importCard.tap()
+
+    // Step 3: Descriptor import screen
+    let importTitle = app.staticTexts["Import Descriptor"]
+    XCTAssertTrue(importTitle.waitForExistence(timeout: 3), "Descriptor import screen should appear")
+
+    // Type a valid 1-of-2 testnet4 descriptor into the TextEditor
+    let testDescriptor = "wsh(sortedmulti(1,[7a13a7b1/48'/1'/0'/2']tpubDETciRzaZyqww2dSAyT2j6tWgzREyiZEY2iZDPKDtqNpSEqqFS31DZUFFTFnayx7wLUVYx3V1R2AWhhWbFrnCukKZ1kmnn83Fn2xSf7hEaH/<0;1>/*,[30a36b52/48'/1'/0'/2']tpubDF6MPv2vWsbCo8c7rk4X32BPa5yuj4niem5Pr6isrd9cSdCkYETcGUmBSFY4ekTR1CRFmjn4eoYGrwPU19FffwEpX7Tda6BBmg91aiHKpmE/<0;1>/*))"
+
+    // Type the descriptor into the TextEditor
+    let textEditor = app.textViews.firstMatch
+    XCTAssertTrue(textEditor.waitForExistence(timeout: 3), "Descriptor text editor should exist")
+    textEditor.tap()
+    textEditor.typeText(testDescriptor)
+
+    // Select "Testnet4" in the network segmented picker (should already be selected as default,
+    // but tap it to be explicit)
+    let testnet4Button = app.buttons["Testnet4"]
+    if testnet4Button.waitForExistence(timeout: 2) {
+      testnet4Button.tap()
     }
+
+    // Tap "Import" to parse the descriptor and advance
+    let importButton = app.buttons["Import"]
+    XCTAssertTrue(importButton.waitForExistence(timeout: 3), "Import button should exist")
+    importButton.tap()
+
+    // Step 4: Wallet name screen
+    let nameTitle = app.staticTexts["Name Your Wallet"]
+    XCTAssertTrue(nameTitle.waitForExistence(timeout: 3), "Wallet name screen should appear")
+
+    // Type a wallet name into the text field
+    let nameField = app.textFields["My Multisig Wallet"]
+    XCTAssertTrue(nameField.waitForExistence(timeout: 3), "Wallet name text field should exist")
+    nameField.tap()
+    nameField.typeText("UI Test Wallet")
+
+    // Tap "Next" to go to review
+    let nextButton = app.buttons["Next"]
+    XCTAssertTrue(nextButton.exists, "Next button should exist")
+    nextButton.tap()
+
+    // Step 5: Review screen
+    let reviewTitle = app.staticTexts["Review Wallet"]
+    XCTAssertTrue(reviewTitle.waitForExistence(timeout: 3), "Review screen should appear")
+
+    // Verify wallet details shown on review screen
+    XCTAssertTrue(app.staticTexts["UI Test Wallet"].exists, "Wallet name should appear in review")
+    XCTAssertTrue(app.staticTexts["1-of-2 Multisig"].exists, "Multisig type should appear in review")
+    XCTAssertTrue(app.staticTexts["Testnet4"].exists, "Network should appear in review")
+    XCTAssertTrue(app.staticTexts["P2WSH (Native Segwit)"].exists, "Script type should appear in review")
+
+    // Verify cosigner fingerprints are displayed
+    XCTAssertTrue(app.staticTexts["7a13a7b1"].exists, "First cosigner fingerprint should appear")
+    XCTAssertTrue(app.staticTexts["30a36b52"].exists, "Second cosigner fingerprint should appear")
+
+    // Tap "Create Wallet" to finish
+    let createButton = app.buttons["Create Wallet"]
+    XCTAssertTrue(createButton.exists, "Create Wallet button should exist")
+    createButton.tap()
+
+    // Verify we land on the main transaction screen (wallet loaded with transactions)
+    let balanceExists = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'sats'")).firstMatch
+    XCTAssertTrue(balanceExists.waitForExistence(timeout: 10), "Main screen should appear after wallet creation")
+
+    // Wait for sync to complete before navigating
+    sleep(10)
+
+    // Step 6: Navigate to Receive tab
+    let receiveTab = app.tabBars.buttons["Receive"]
+    XCTAssertTrue(receiveTab.waitForExistence(timeout: 5), "Receive tab should exist")
+    receiveTab.tap()
+
+    // Wait for the receive screen to load with an address
+    let viewAllAddresses = app.buttons["View All Addresses"]
+    XCTAssertTrue(viewAllAddresses.waitForExistence(timeout: 10), "View All Addresses link should appear on Receive screen")
+
+    // Step 7: Tap "View All Addresses" to open the address list
+    viewAllAddresses.tap()
+
+    // Wait for the address list to load
+    let addressesTitle = app.navigationBars["Addresses"]
+    XCTAssertTrue(addressesTitle.waitForExistence(timeout: 10), "Addresses screen should appear")
+
+    // Step 8: Verify the first address (#0) matches the expected address
+    let expectedAddress = "tb1q8xp3nj85dg02yqzhwslyhdrjxg722mrnawv6cwz7xj4jtxs5j0us8n0eyq"
+    let firstAddressCell = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", expectedAddress)).firstMatch
+    XCTAssertTrue(firstAddressCell.waitForExistence(timeout: 10), "First address should be \(expectedAddress)")
   }
 }

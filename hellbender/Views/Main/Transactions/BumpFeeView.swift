@@ -64,7 +64,7 @@ private struct BumpFeeInputView: View {
           }
 
           DetailRow(label: "Minimum to Bump") {
-            Text(BumpFeeViewModel.formatRate(viewModel.minimumBumpRate) + " sat/vB")
+            Text(formatFeeRate(viewModel.minimumBumpRate) + " sat/vB")
               .font(.hbMono())
               .foregroundStyle(Color.hbBitcoinOrange)
           }
@@ -108,7 +108,7 @@ private struct BumpFeeRateCard: View {
 
   private var currentRateText: String {
     viewModel.feeRateValue > 0
-      ? BumpFeeViewModel.formatRate(viewModel.feeRateValue) + " sat/vB"
+      ? formatFeeRate(viewModel.feeRateValue) + " sat/vB"
       : "--"
   }
 
@@ -180,7 +180,7 @@ private struct BumpFeeRateCard: View {
         Spacer()
 
         if let rate = preset.rate(from: viewModel.recommendedFees) {
-          Text(BumpFeeViewModel.formatRate(rate) + " sat/vB")
+          Text(formatFeeRate(rate) + " sat/vB")
             .font(.hbMono(13))
             .foregroundStyle(Color.hbTextPrimary)
         } else {
@@ -234,7 +234,7 @@ private struct BumpFeeRateCard: View {
           if filtered != newValue { viewModel.newFeeRate = filtered }
           // Only switch to .custom when the value wasn't set by applyPreset
           if let rate = viewModel.selectedFeePreset.rate(from: viewModel.recommendedFees),
-             viewModel.newFeeRate == BumpFeeViewModel.formatRate(rate)
+             viewModel.newFeeRate == formatFeeRate(rate)
           {
             // Value matches the selected preset — applyPreset wrote this, leave preset as-is
           } else {
@@ -473,7 +473,7 @@ private struct BumpFeePSBTScanView: View {
         required: viewModel.requiredSignatures
       )
 
-      URScannerSheet { result in
+      URScannerSheet(preferMacroCamera: true) { result in
         if case let .psbt(data) = result {
           Task { await viewModel.handleSignedPSBT(data, modelContext: modelContext) }
         }

@@ -2,7 +2,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct PSBTFileDocument: FileDocument {
-  static var readableContentTypes: [UTType] { [.data] }
+  static var readableContentTypes: [UTType] {
+    [.data]
+  }
 
   let data: Data
 
@@ -14,7 +16,7 @@ struct PSBTFileDocument: FileDocument {
     data = configuration.file.regularFileContents ?? Data()
   }
 
-  func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+  func fileWrapper(configuration _: WriteConfiguration) throws -> FileWrapper {
     FileWrapper(regularFileWithContents: data)
   }
 }

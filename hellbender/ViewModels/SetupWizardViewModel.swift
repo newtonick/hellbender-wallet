@@ -1,8 +1,10 @@
+import BitcoinDevKit
 import Foundation
 import Observation
 import SwiftData
 
 @Observable
+@MainActor
 final class SetupWizardViewModel {
   enum Step: Int, CaseIterable {
     case welcome
@@ -57,10 +59,10 @@ final class SetupWizardViewModel {
     let hasTestnetKeys = text.contains("tpub") || text.contains("Vpub")
     let hasMainnetKeys = text.contains("xpub") || text.contains("Zpub")
 
-    if network == .mainnet && hasTestnetKeys && !hasMainnetKeys {
+    if network == .mainnet, hasTestnetKeys, !hasMainnetKeys {
       return "Testnet descriptors cannot be used on mainnet"
     }
-    if network != .mainnet && hasMainnetKeys && !hasTestnetKeys {
+    if network != .mainnet, hasMainnetKeys, !hasTestnetKeys {
       return "Mainnet descriptors cannot be used on testnet/signet"
     }
     return nil
@@ -80,12 +82,15 @@ final class SetupWizardViewModel {
 
   // State
   var errorMessage: String?
+  var importDescriptorError: String?
   var isProcessing: Bool = false
   var network: BitcoinNetwork = .testnet4
+  /// Set to true after the wallet has been created during the import flow.
+  var walletCreated: Bool = false
 
   /// Progress
   var stepCount: Int {
-    creationMode == .createNew ? 5 : 4
+    creationMode == .createNew ? 5 : 3
   }
 
   var currentStepIndex: Int {
@@ -212,7 +217,13 @@ final class SetupWizardViewModel {
   }
 
   func parseImportedDescriptor() -> Bool {
-    var text = importedDescriptorText.trimmingCharacters(in: .whitespacesAndNewlines)
+    // If the input is a JSON object (e.g. Specter Desktop export), extract the descriptor field
+    if let descriptor = URService.extractDescriptorFromJSON(importedDescriptorText) {
+      importedDescriptorText = descriptor
+    }
+
+    // Remove all whitespace and newlines — descriptors may be pasted in multiline format
+    var text = importedDescriptorText.components(separatedBy: .whitespacesAndNewlines).joined()
     guard !text.isEmpty else {
       errorMessage = "Descriptor is empty"
       return false
@@ -221,6 +232,11 @@ final class SetupWizardViewModel {
     // Strip checksum (e.g. #2kjudevd)
     if let hashIndex = text.lastIndex(of: "#") {
       text = String(text[text.startIndex ..< hashIndex])
+    }
+
+    // Normalize smart/curly quotes to ASCII apostrophes (iOS keyboard substitution)
+    for smartQuote in ["\u{2018}", "\u{2019}", "\u{02BC}"] {
+      text = text.replacingOccurrences(of: smartQuote, with: "'")
     }
 
     // Normalize hardened notation: h → '
@@ -252,15 +268,38 @@ final class SetupWizardViewModel {
     } else if text.contains("<1;0>/*") {
       externalDescriptor = text.replacingOccurrences(of: "<1;0>/*", with: "0/*")
       internalDescriptor = text.replacingOccurrences(of: "<1;0>/*", with: "1/*")
+    } else if text.contains("{0,1}/*") {
+      // Pre-BIP389 Specter DIY format: {0,1}/* → split into /0/* and /1/*
+      externalDescriptor = text.replacingOccurrences(of: "{0,1}/*", with: "0/*")
+      internalDescriptor = text.replacingOccurrences(of: "{0,1}/*", with: "1/*")
+    } else if text.contains("{1,0}/*") {
+      externalDescriptor = text.replacingOccurrences(of: "{1,0}/*", with: "0/*")
+      internalDescriptor = text.replacingOccurrences(of: "{1,0}/*", with: "1/*")
+    } else if text.contains("/0/*") {
+      // Standard single-path descriptor (external)
+      externalDescriptor = text
+      internalDescriptor = text.replacingOccurrences(of: "/0/*", with: "/1/*")
+    } else if text.contains("/1/*") {
+      // Standard single-path descriptor (internal)
+      internalDescriptor = text
+      externalDescriptor = text.replacingOccurrences(of: "/1/*", with: "/0/*")
     } else {
-      // Standard single-path descriptor
-      let isExternal = text.contains("/0/*")
-      if isExternal {
-        externalDescriptor = text
-        internalDescriptor = text.replacingOccurrences(of: "/0/*", with: "/1/*")
+      // No derivation suffix (e.g. Specter Desktop format) — append /0/* and /1/*
+      // Replace each bare xpub (followed by , or )) with xpub/0/* for external
+      let xpubPattern = #"([xt]pub[a-zA-Z0-9]+)(?=[,)])"#
+      if let xpubRegex = try? NSRegularExpression(pattern: xpubPattern) {
+        let nsText = text as NSString
+        externalDescriptor = xpubRegex.stringByReplacingMatches(
+          in: text, range: NSRange(location: 0, length: nsText.length),
+          withTemplate: "$1/0/*"
+        )
+        internalDescriptor = xpubRegex.stringByReplacingMatches(
+          in: text, range: NSRange(location: 0, length: nsText.length),
+          withTemplate: "$1/1/*"
+        )
       } else {
+        externalDescriptor = text
         internalDescriptor = text
-        externalDescriptor = text.replacingOccurrences(of: "/1/*", with: "/0/*")
       }
     }
 
@@ -331,13 +370,26 @@ final class SetupWizardViewModel {
       buildDescriptors()
       currentStep = .walletName
     case .descriptorImport:
+      importDescriptorError = nil
       guard isElectrumHostValid else {
-        errorMessage = "An Electrum server host is required for \(network.displayName)"
+        importDescriptorError = "An Electrum server host is required for \(network.displayName)"
         return
       }
-      if parseImportedDescriptor() {
-        currentStep = .walletName
+      guard parseImportedDescriptor() else {
+        importDescriptorError = errorMessage
+        errorMessage = nil
+        return
       }
+      // Validate descriptors with BDK before proceeding
+      let bdkNetwork = BitcoinService.shared.bdkNetwork(from: network)
+      do {
+        _ = try Descriptor(descriptor: externalDescriptor, network: bdkNetwork)
+        _ = try Descriptor(descriptor: internalDescriptor, network: bdkNetwork)
+      } catch {
+        importDescriptorError = "Invalid descriptor: \(error.localizedDescription)"
+        return
+      }
+      currentStep = .walletName
     case .walletName:
       currentStep = .review
     case .review:
@@ -353,7 +405,10 @@ final class SetupWizardViewModel {
     case .cosignerImport: currentStep = .multisigConfig
     case .descriptorImport: currentStep = .creationChoice
     case .walletName:
-      currentStep = creationMode == .createNew ? .cosignerImport : .descriptorImport
+      if creationMode == .createNew {
+        currentStep = .cosignerImport
+      }
+      // Import flow: back button is hidden, wallet already created
     case .review: currentStep = .walletName
     }
   }
@@ -363,6 +418,15 @@ final class SetupWizardViewModel {
   func saveWallet(modelContext: ModelContext) throws {
     guard isElectrumHostValid else {
       throw AppError.electrumConnectionFailed("An Electrum server host is required for \(network.displayName)")
+    }
+
+    // Validate descriptors with BDK before saving — catch parse errors early
+    let bdkNetwork = BitcoinService.shared.bdkNetwork(from: network)
+    do {
+      _ = try Descriptor(descriptor: externalDescriptor, network: bdkNetwork)
+      _ = try Descriptor(descriptor: internalDescriptor, network: bdkNetwork)
+    } catch {
+      throw AppError.descriptorInvalid("\(error.localizedDescription)")
     }
 
     // Deactivate all existing wallets
@@ -403,10 +467,17 @@ final class SetupWizardViewModel {
       modelContext.insert(cosigner)
     }
 
-    try modelContext.save()
-
-    // Store active wallet ID
+    // Set UserDefaults before save so both are in place if app is killed after save
     UserDefaults.standard.set(profile.id.uuidString, forKey: Constants.activeWalletIDKey)
     UserDefaults.standard.set(true, forKey: Constants.hasCompletedOnboardingKey)
+
+    do {
+      try modelContext.save()
+    } catch {
+      // Rollback UserDefaults if save fails
+      UserDefaults.standard.removeObject(forKey: Constants.activeWalletIDKey)
+      UserDefaults.standard.removeObject(forKey: Constants.hasCompletedOnboardingKey)
+      throw error
+    }
   }
 }

@@ -30,7 +30,7 @@ enum BitcoinNetwork: String, CaseIterable, Codable, Identifiable {
     switch self {
     case .mainnet: nil
     case .testnet4: "testnet4.mempool.space"
-    case .testnet3: "testnet.aranguren.org"
+    case .testnet3: "electrum.blockstream.info"
     case .signet: "signet.mempool.space"
     }
   }
@@ -39,7 +39,7 @@ enum BitcoinNetwork: String, CaseIterable, Codable, Identifiable {
     switch self {
     case .mainnet: 50002
     case .testnet4: 40002
-    case .testnet3: 51002
+    case .testnet3: 60002
     case .signet: 60602
     }
   }

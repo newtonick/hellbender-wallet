@@ -1,9 +1,13 @@
+import OSLog
 import SwiftData
 import SwiftUI
 import URKit
 
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "WalletInfo")
+
 struct WalletInfoView: View {
   @Environment(\.modelContext) private var modelContext
+  @Environment(\.dismiss) private var dismiss
   @Bindable var wallet: WalletProfile
   @State private var gapLimitText: String = ""
   @State private var isResyncing = false
@@ -17,7 +21,9 @@ struct WalletInfoView: View {
   @State private var isTestingConnection = false
   @State private var connectionTestResult: String?
   @State private var blockExplorerText: String = ""
+  @State private var initialElectrumConfig: ElectrumConfig?
   @State private var showDescriptorQR = false
+  @State private var showDeleteConfirmation = false
   @State private var showDescriptorPDF = false
 
   private var combinedDescriptor: String {
@@ -348,10 +354,52 @@ struct WalletInfoView: View {
           }
         }
         .hbCard()
+
+        // Privacy Mode
+        VStack(spacing: 12) {
+          Toggle(isOn: Binding(
+            get: { wallet.privacyMode },
+            set: { new in
+              logger.info("Privacy mode \(new ? "enabled" : "disabled", privacy: .public)")
+              wallet.privacyMode = new
+            }
+          )) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text("Privacy Mode")
+                .foregroundStyle(Color.hbTextPrimary)
+              Text("Hide balances, addresses, and transaction details")
+                .font(.hbBody(12))
+                .foregroundStyle(Color.hbTextSecondary)
+            }
+          }
+          .tint(Color.hbBitcoinOrange)
+        }
+        .hbCard()
+
+        // Delete Wallet
+        Button(action: { showDeleteConfirmation = true }) {
+          HStack(spacing: 8) {
+            Image(systemName: "trash")
+            Text("Delete Wallet")
+              .font(.hbBody(15))
+          }
+          .foregroundStyle(Color.hbError)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 14)
+          .background(Color.hbError.opacity(0.12))
+          .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .padding(.top, 16)
       }
       .padding(16)
     }
     .scrollDismissesKeyboard(.interactively)
+    .alert("Delete Wallet", isPresented: $showDeleteConfirmation) {
+      Button("Delete", role: .destructive) { deleteWallet() }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("Are you sure you want to delete \"\(wallet.name)\"? This cannot be undone. You can re-import using your output descriptor.")
+    }
     .onTapGesture {
       UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
@@ -362,6 +410,18 @@ struct WalletInfoView: View {
       electrumHostText = wallet.electrumHost
       electrumPortText = wallet.electrumPort > 0 ? "\(wallet.electrumPort)" : ""
       blockExplorerText = wallet.blockExplorerHost
+      initialElectrumConfig = wallet.electrumConfig
+    }
+    .onDisappear {
+      if let initial = initialElectrumConfig, wallet.electrumConfig != initial {
+        logger.info("Electrum settings changed — reloading wallet")
+        let service = BitcoinService.shared
+        Task {
+          service.unloadWallet()
+          try? await service.loadWallet(profile: wallet)
+          try? await service.sync()
+        }
+      }
     }
     .sheet(isPresented: $showEditCosigners) {
       EditCosignersView(wallet: wallet)
@@ -377,12 +437,15 @@ struct WalletInfoView: View {
   private func testElectrumConnection() {
     isTestingConnection = true
     connectionTestResult = nil
+    let config = wallet.electrumConfig
+    logger.info("Testing Electrum connection to \(config.url, privacy: .public)")
     Task {
-      let config = wallet.electrumConfig
       do {
         try await BitcoinService.shared.testElectrumConnection(config: config)
+        logger.info("Electrum connection test succeeded")
         connectionTestResult = "Success — server responded to ping"
       } catch {
+        logger.error("Electrum connection test failed: \(error)")
         connectionTestResult = "Failed: \(error.localizedDescription)"
       }
       isTestingConnection = false
@@ -390,6 +453,7 @@ struct WalletInfoView: View {
   }
 
   private func resetElectrumDefaults() {
+    logger.info("Electrum config reset to defaults")
     wallet.electrumHost = ""
     wallet.electrumPort = 0
     wallet.electrumSSL = 0
@@ -401,12 +465,14 @@ struct WalletInfoView: View {
   private func saveName() {
     let trimmed = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
     if !trimmed.isEmpty {
+      logger.info("Wallet name changed to \(trimmed, privacy: .private)")
       wallet.name = trimmed
     }
     isEditingName = false
   }
 
   private func forceResync() {
+    logger.info("Force full resync initiated")
     isResyncing = true
     resyncError = nil
     resyncSuccess = false
@@ -414,12 +480,20 @@ struct WalletInfoView: View {
     Task {
       do {
         try await BitcoinService.shared.fullResync()
+        logger.info("Force resync completed")
         resyncSuccess = true
       } catch {
+        logger.error("Force resync failed: \(error)")
         resyncError = error.localizedDescription
       }
       isResyncing = false
     }
+  }
+
+  private func deleteWallet() {
+    let walletManager = WalletManagerViewModel()
+    walletManager.deleteWallet(wallet, modelContext: modelContext)
+    dismiss()
   }
 }
 
@@ -721,6 +795,8 @@ private struct EditCosignersView: View {
 
     wallet.externalDescriptor = extDesc
     wallet.internalDescriptor = intDesc
+
+    logger.info("Cosigner changes saved, rebuilding descriptors")
 
     // Delete old BDK wallet database so it reloads fresh
     let dbPath = Constants.walletDatabasePath(for: wallet.id)

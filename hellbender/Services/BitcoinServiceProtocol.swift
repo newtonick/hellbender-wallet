@@ -1,6 +1,7 @@
 import Foundation
 
 /// Protocol abstracting BitcoinService for dependency injection and testing
+@MainActor
 protocol BitcoinServiceProtocol {
   // Properties used by ViewModels
   var utxos: [UTXOItem] { get }

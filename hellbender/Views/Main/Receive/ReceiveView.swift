@@ -119,7 +119,9 @@ struct ReceiveView: View {
     .id(walletID)
     .onAppear {
       walletID = BitcoinService.shared.currentProfile?.id
-      viewModel.loadAddress()
+      if let walletID {
+        viewModel.loadAddress(for: walletID)
+      }
       loadLabel()
     }
     .onChange(of: viewModel.currentAddress) {
@@ -128,7 +130,9 @@ struct ReceiveView: View {
     }
     .onChange(of: BitcoinService.shared.currentProfile?.id) {
       walletID = BitcoinService.shared.currentProfile?.id
-      viewModel.loadAddress()
+      if let walletID {
+        viewModel.loadAddress(for: walletID)
+      }
       copied = false
       isEditingLabel = false
       loadLabel()

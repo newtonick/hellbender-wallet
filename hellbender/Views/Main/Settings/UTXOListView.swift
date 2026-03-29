@@ -10,6 +10,10 @@ struct UTXOListView: View {
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
   @AppStorage(Constants.fiatPrimaryKey) private var fiatPrimary = false
 
+  private var isPrivate: Bool {
+    BitcoinService.shared.currentProfile?.privacyMode ?? false
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       // Title
@@ -32,7 +36,11 @@ struct UTXOListView: View {
           NavigationLink(destination: UTXODetailView(utxo: utxo)) {
             VStack(alignment: .leading, spacing: 6) {
               HStack {
-                if fiatEnabled, fiatPrimary, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(utxo.amount) {
+                if isPrivate {
+                  Text(Constants.privacyText())
+                    .font(.hbMono(14))
+                    .foregroundStyle(isFrozen(utxo) ? Color.hbTextSecondary : Color.hbTextPrimary)
+                } else if fiatEnabled, fiatPrimary, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(utxo.amount) {
                   Text(fiatStr)
                     .font(.hbMono(14))
                     .foregroundStyle(isFrozen(utxo) ? Color.hbTextSecondary : Color.hbTextPrimary)
@@ -64,7 +72,11 @@ struct UTXOListView: View {
               }
 
               HStack {
-                if let address = viewModel.address(for: utxo) {
+                if isPrivate {
+                  Text(Constants.privacyText(length: 8))
+                    .font(.hbMono(11))
+                    .foregroundStyle(Color.hbTextSecondary)
+                } else if let address = viewModel.address(for: utxo) {
                   Text(address.truncatedMiddle(leading: 10, trailing: 8))
                     .font(.hbMono(11))
                     .foregroundStyle(Color.hbTextSecondary)

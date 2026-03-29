@@ -6,6 +6,7 @@ struct TransactionRowView: View {
   var label: String?
   var showChevron: Bool = true
   var showFiat: Bool = false
+  var isPrivate: Bool = false
   @AppStorage(Constants.denominationKey) private var denomination: String = "sats"
   @State private var now = Date()
 
@@ -40,7 +41,11 @@ struct TransactionRowView: View {
       Spacer()
 
       VStack(alignment: .trailing, spacing: 4) {
-        if showFiat, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(transaction.amount) {
+        if isPrivate {
+          Text(Constants.privacyText())
+            .font(.hbMono(14))
+            .foregroundStyle(transaction.isIncoming ? Color.hbSuccess : Color.hbTextPrimary)
+        } else if showFiat, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(transaction.amount) {
           Text(fiatStr)
             .font(.hbMono(14))
             .foregroundStyle(transaction.isIncoming ? Color.hbSuccess : Color.hbTextPrimary)

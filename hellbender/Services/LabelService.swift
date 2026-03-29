@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "LabelService")
 
 /// Handles label propagation between transactions, UTXOs, and addresses.
 enum LabelService {
@@ -10,7 +13,7 @@ enum LabelService {
     utxos: [UTXOItem],
     context: ModelContext,
     walletID: UUID
-  ) {
+  ) throws {
     let allLabels = fetchAllLabels(walletID: walletID, context: context)
     let addrLabels = Dictionary(
       allLabels.filter { $0.type == "addr" }.map { ($0.ref, $0.label) },
@@ -43,7 +46,14 @@ enum LabelService {
       }
     }
 
-    if didChange { try? context.save() }
+    if didChange {
+      do {
+        try context.save()
+      } catch {
+        logger.error("Failed to save propagated address labels: \(error)")
+        throw error
+      }
+    }
   }
 
   /// Called after saving a receive transaction's label.
@@ -56,7 +66,7 @@ enum LabelService {
     utxos: [UTXOItem],
     context: ModelContext,
     walletID: UUID
-  ) {
+  ) throws {
     guard transaction.isIncoming, !newLabel.isEmpty else { return }
 
     let allLabels = fetchAllLabels(walletID: walletID, context: context)
@@ -79,7 +89,14 @@ enum LabelService {
       }
     }
 
-    if didChange { try? context.save() }
+    if didChange {
+      do {
+        try context.save()
+      } catch {
+        logger.error("Failed to save propagated tx labels: \(error)")
+        throw error
+      }
+    }
   }
 
   /// Called after a send transaction is broadcast.
@@ -91,7 +108,7 @@ enum LabelService {
     changeVout: UInt32,
     context: ModelContext,
     walletID: UUID
-  ) {
+  ) throws {
     guard !txLabel.isEmpty, !changeAddress.isEmpty else { return }
     let changeLabel = "Change From: \(txLabel)"
     let allLabels = fetchAllLabels(walletID: walletID, context: context)
@@ -111,7 +128,14 @@ enum LabelService {
       didChange = true
     }
 
-    if didChange { try? context.save() }
+    if didChange {
+      do {
+        try context.save()
+      } catch {
+        logger.error("Failed to save propagated change labels: \(error)")
+        throw error
+      }
+    }
   }
 
   // MARK: - BIP 329 Import
@@ -125,7 +149,7 @@ enum LabelService {
     walletID: UUID,
     cosigners: [CosignerInfo],
     context: ModelContext
-  ) -> Int {
+  ) throws -> Int {
     let records = BIP329Record.parseFromJSONL(data)
     let existingLabels = fetchAllLabels(walletID: walletID, context: context)
 
@@ -208,7 +232,14 @@ enum LabelService {
       }
     }
 
-    if importedCount > 0 { try? context.save() }
+    if importedCount > 0 {
+      do {
+        try context.save()
+      } catch {
+        logger.error("Failed to save BIP329 import (\(importedCount) labels): \(error)")
+        throw error
+      }
+    }
     return importedCount
   }
 
@@ -274,7 +305,7 @@ enum LabelService {
     changeAddresses: [AddressItem],
     cosigners: [CosignerInfo],
     requiredSignatures: Int,
-    network: BitcoinNetwork
+    network _: BitcoinNetwork
   ) -> [BIP329Record] {
     // Build lookup dictionaries
     let labelsByTypeAndRef = Dictionary(
@@ -426,6 +457,11 @@ enum LabelService {
 
   private static func fetchAllLabels(walletID: UUID, context: ModelContext) -> [WalletLabel] {
     let descriptor = FetchDescriptor<WalletLabel>(predicate: #Predicate { $0.walletID == walletID })
-    return (try? context.fetch(descriptor)) ?? []
+    do {
+      return try context.fetch(descriptor)
+    } catch {
+      logger.error("Failed to fetch labels for wallet \(walletID): \(error)")
+      return []
+    }
   }
 }

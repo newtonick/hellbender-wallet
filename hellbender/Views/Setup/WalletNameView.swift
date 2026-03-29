@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WalletNameView: View {
   @Bindable var viewModel: SetupWizardViewModel
+  var onSave: (() -> Void)?
 
   var body: some View {
     VStack(spacing: 32) {
@@ -32,16 +33,24 @@ struct WalletNameView: View {
       Spacer()
 
       HStack(spacing: 16) {
-        Button(action: { viewModel.goBack() }) {
-          Text("Back")
-            .font(.hbBody(16))
-            .foregroundStyle(Color.hbTextSecondary)
+        if viewModel.creationMode == .createNew {
+          Button(action: { viewModel.goBack() }) {
+            Text("Back")
+              .font(.hbBody(16))
+              .foregroundStyle(Color.hbTextSecondary)
+          }
         }
 
         Spacer()
 
-        Button(action: { viewModel.goToNext() }) {
-          Text("Next")
+        Button(action: {
+          if viewModel.creationMode == .importDescriptor, let onSave {
+            onSave()
+          } else {
+            viewModel.goToNext()
+          }
+        }) {
+          Text(viewModel.creationMode == .importDescriptor ? "Create Wallet" : "Next")
             .font(.hbHeadline)
             .foregroundStyle(.white)
             .padding(.horizontal, 32)

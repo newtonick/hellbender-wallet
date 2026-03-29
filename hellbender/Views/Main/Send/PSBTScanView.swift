@@ -24,7 +24,7 @@ struct PSBTScanView: View {
       )
 
       // QR Scanner
-      URScannerSheet { result in
+      URScannerSheet(preferMacroCamera: true) { result in
         if case let .psbt(data) = result {
           Task { await viewModel.handleSignedPSBT(data, modelContext: modelContext) }
         }

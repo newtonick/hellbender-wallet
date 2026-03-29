@@ -44,6 +44,9 @@ struct DescriptorImportView: View {
             .background(Color.hbSurfaceElevated)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .foregroundStyle(Color.hbTextPrimary)
+            .onChange(of: viewModel.importedDescriptorText) {
+              viewModel.importDescriptorError = nil
+            }
 
           Text("Expected format: wsh(sortedmulti(M,[fp/path]xpub/0/*,...))")
             .font(.hbMono(10))
@@ -79,6 +82,18 @@ struct DescriptorImportView: View {
             .font(.hbLabel(13))
             .foregroundStyle(Color.hbError)
             .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+        }
+
+        if let importError = viewModel.importDescriptorError {
+          Text(importError)
+            .font(.hbBody(13))
+            .foregroundStyle(Color.hbError)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color.hbError.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.horizontal, 24)
         }
 

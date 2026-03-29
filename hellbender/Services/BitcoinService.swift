@@ -1,6 +1,8 @@
 import BitcoinDevKit
 import Combine
 import Foundation
+import Network
+import OSLog
 import SwiftData
 
 // MARK: - Fee Source
@@ -19,7 +21,10 @@ enum FeeSource: String, CaseIterable {
   }
 }
 
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "BitcoinService")
+
 @Observable
+@MainActor
 final class BitcoinService {
   static let shared = BitcoinService()
 
@@ -40,6 +45,7 @@ final class BitcoinService {
   private(set) var totalCosigners: Int = 1
   private(set) var chainTipHeight: UInt32 = 0
   private var needsFullScan: Bool = true
+  var syncTask: Task<Void, Error>?
 
   // Sync state — single source of truth
   private(set) var syncState: WalletSyncState = .notStarted
@@ -47,10 +53,17 @@ final class BitcoinService {
   private(set) var lastSyncType: SyncType = .none
   private(set) var syncLog: [String] = []
 
+  /// Updates syncState only if the given profile is still the active wallet.
+  /// Prevents a long-running sync from overwriting UI state after a wallet switch.
+  private func setSyncState(_ state: WalletSyncState, for profileId: UUID?) {
+    guard currentProfile?.id == profileId else { return }
+    syncState = state
+  }
+
   private func addToLog(_ message: String) {
     let timestamp = ISO8601DateFormatter().string(from: Date())
     let entry = "[\(timestamp)] \(message)"
-    print(entry)
+    logger.info("\(message, privacy: .public)")
     syncLog.append(entry)
     if syncLog.count > 100 {
       syncLog.removeFirst()
@@ -68,11 +81,11 @@ final class BitcoinService {
 
   func startAutoSync() {
     guard autoSyncCancellable == nil else { return }
-    autoSyncCancellable = Timer.publish(every: 60, on: .main, in: .common)
+    autoSyncCancellable = Timer.publish(every: 1800, on: .main, in: .common)
       .autoconnect()
       .sink { [weak self] _ in
         guard let self, !self.syncState.isSyncing, wallet != nil else { return }
-        Task {
+        syncTask = Task {
           try? await self.sync()
         }
       }
@@ -91,36 +104,99 @@ final class BitcoinService {
   /// Check if enough time has passed since last sync and sync if needed
   func autoSyncIfNeeded() {
     guard !syncState.isSyncing, wallet != nil else { return }
-    if timeSinceLastSync >= 60 {
-      Task {
+    if timeSinceLastSync >= 1800 {
+      syncTask = Task {
         try? await self.sync()
       }
     }
   }
 
+  /// True only after we have successfully fetched data from the Electrum server.
+  private(set) var electrumVerified = false
+
   var isElectrumConnected: Bool {
-    electrumClient != nil
+    electrumClient != nil && electrumVerified
   }
+
+  /// Stores the last Electrum connection error for display in the UI.
+  private(set) var electrumConnectionError: String?
 
   var electrumURL: String? {
     guard let profile = currentProfile else { return nil }
     return profile.electrumConfig.url
   }
 
+  /// Returns a user-friendly description for Electrum connection errors,
+  /// detecting self-signed certificate issues that BDK cannot handle.
+  static func friendlyElectrumError(_ error: Error) -> String {
+    let msg = "\(error)"
+    if msg.contains("InvalidCertificate") || msg.contains("CertificateRequired")
+      || msg.contains("BadCertificate") || msg.contains("UnknownIssuer")
+    {
+      return "SSL certificate rejected — the server may use a self-signed certificate which BDK does not support. Try using TCP instead of SSL, or use a server with a CA-signed certificate."
+    }
+    if msg.contains("AllAttemptsErrored") || msg.contains("CouldNotCreateConnection") {
+      return "Could not connect to Electrum server — check your network connection and server settings."
+    }
+    return msg
+  }
+
   private init() {}
 
   // MARK: - Wallet Lifecycle
 
+  func unloadWallet() {
+    syncTask?.cancel()
+    syncTask = nil
+    stopAutoSync()
+    wallet = nil
+    persister = nil
+    electrumClient = nil
+    electrumVerified = false
+    electrumConnectionError = nil
+    chainTipHeight = 0
+    currentProfile = nil
+    balance = 0
+    transactions = []
+    utxos = []
+    syncState = .notStarted
+    lastSyncDate = nil
+    syncLog = []
+  }
+
   func loadWallet(profile: WalletProfile) async throws {
+    // Cancel any in-flight sync and clear previous wallet state
+    if currentProfile != nil, currentProfile?.id != profile.id {
+      addToLog("Switching wallets — unloading previous wallet")
+      unloadWallet()
+    }
+
     let network = bdkNetwork(from: profile.bitcoinNetwork)
     addToLog("Loading wallet for profile: \(profile.name) (\(profile.id)) on \(profile.bitcoinNetwork.displayName)")
 
-    // Auto-repair malformed descriptors (e.g. double slashes from trailing-slash xpubs)
-    let extDescStr = profile.externalDescriptor.replacingOccurrences(of: "//", with: "/")
-    let intDescStr = profile.internalDescriptor.replacingOccurrences(of: "//", with: "/")
+    // Auto-repair malformed descriptors
+    var extDescStr = profile.externalDescriptor
+    var intDescStr = profile.internalDescriptor
+
+    // Normalize smart/curly quotes to ASCII apostrophes (iOS keyboard substitution)
+    for smartQuote in ["\u{2018}", "\u{2019}", "\u{02BC}"] {
+      extDescStr = extDescStr.replacingOccurrences(of: smartQuote, with: "'")
+      intDescStr = intDescStr.replacingOccurrences(of: smartQuote, with: "'")
+    }
+
+    // Fix double slashes from trailing-slash xpubs
+    extDescStr = extDescStr.replacingOccurrences(of: "//", with: "/")
+    intDescStr = intDescStr.replacingOccurrences(of: "//", with: "/")
+
+    // Auto-repair BIP-389 multipath notation — BDK requires separate /0/* and /1/* descriptors
+    if extDescStr.contains("<0;1>/*") {
+      addToLog("Auto-repairing multipath descriptor: splitting <0;1>/* into /0/* and /1/*")
+      extDescStr = extDescStr.replacingOccurrences(of: "<0;1>/*", with: "0/*")
+      intDescStr = intDescStr.replacingOccurrences(of: "<0;1>/*", with: "1/*")
+    }
+
     if extDescStr != profile.externalDescriptor || intDescStr != profile.internalDescriptor {
-      addToLog("Auto-repaired malformed descriptors (double slashes)")
-      print("Auto-repaired malformed descriptors (double slashes)")
+      addToLog("Descriptors auto-repaired — updating profile and clearing stale database")
       profile.externalDescriptor = extDescStr
       profile.internalDescriptor = intDescStr
       // Descriptor changed — delete stale BDK database so wallet is recreated
@@ -129,22 +205,27 @@ final class BitcoinService {
     }
 
     let walletDir = Constants.walletDirectory(for: profile.id)
+    addToLog("Creating wallet directory: \(walletDir.path)")
     try FileManager.default.createDirectory(at: walletDir, withIntermediateDirectories: true)
 
     let dbPath = Constants.walletDatabasePath(for: profile.id)
+    addToLog("Opening database: \(dbPath.path)")
     let persister = try Persister.newSqlite(path: dbPath.path)
 
+    addToLog("Parsing external descriptor (\(extDescStr.count) chars): \(extDescStr)")
     let externalDesc = try Descriptor(descriptor: extDescStr, network: network)
+    addToLog("Parsing internal/change descriptor")
     let changeDesc = try Descriptor(descriptor: intDescStr, network: network)
 
     // Try loading existing wallet first, create new if not found
     let w: Wallet
     do {
+      addToLog("Attempting to load existing wallet from database")
       w = try Wallet.load(descriptor: externalDesc, changeDescriptor: changeDesc, persister: persister)
       addToLog("Existing wallet loaded from database")
     } catch {
       // No persisted wallet — create fresh
-      addToLog("Creating new wallet instance")
+      addToLog("No existing wallet found (\(error)), creating new wallet instance")
       w = try Wallet(
         descriptor: externalDesc,
         changeDescriptor: changeDesc,
@@ -182,12 +263,14 @@ final class BitcoinService {
     let config = profile.electrumConfig
     addToLog("Connecting to Electrum: \(config.url)")
     do {
-      electrumClient = try ElectrumClient(url: config.url)
+      let url = config.url
+      electrumClient = try await Task.detached { try ElectrumClient(url: url) }.value
+      electrumConnectionError = nil
       addToLog("Electrum client initialized")
     } catch {
       electrumClient = nil
+      electrumConnectionError = Self.friendlyElectrumError(error)
       addToLog("Electrum connection failed: \(error)")
-      print("Electrum connection failed (offline?): \(error)")
     }
   }
 
@@ -199,7 +282,17 @@ final class BitcoinService {
       throw AppError.walletNotLoaded
     }
 
-    syncState = .syncing("Connecting…")
+    guard !syncState.isSyncing else {
+      addToLog("Sync skipped: already in progress")
+      return
+    }
+
+    // Capture wallet identity and persister at start — if the wallet switches
+    // during sync, we must not apply results or persist to the wrong database.
+    let syncProfileId = currentProfile?.id
+    let syncPersister = persister
+
+    setSyncState(.syncing("Connecting…"), for: syncProfileId)
     addToLog("Starting sync (needsFullScan: \(needsFullScan))")
 
     do {
@@ -207,7 +300,9 @@ final class BitcoinService {
       if electrumClient == nil, let profile = currentProfile {
         let config = profile.electrumConfig
         addToLog("Re-initializing Electrum client: \(config.url)")
-        electrumClient = try ElectrumClient(url: config.url)
+        let reconnectURL = config.url
+        electrumClient = try await Task.detached { try ElectrumClient(url: reconnectURL) }.value
+        electrumConnectionError = nil
       }
 
       guard let client = electrumClient else {
@@ -215,70 +310,116 @@ final class BitcoinService {
         throw AppError.electrumConnectionFailed("No internet connection")
       }
 
+      // Verify server is reachable before starting scan — prevents showing
+      // misleading "Scanning addresses" progress when offline / server is down.
+      setSyncState(.syncing("Checking server…"), for: syncProfileId)
+      try await Task.detached { try client.ping() }.value
+      addToLog("Server ping OK")
+
       if needsFullScan {
         let gapLimit = currentProfile?.addressGapLimit ?? Constants.maxAddressGap
         addToLog("Starting full scan (gapLimit: \(gapLimit))")
 
         let inspector = FullScanProgressInspector { [weak self] keychain, index in
           let path = keychain == .external ? "0" : "1"
-          self?.syncState = .syncing("Scanning …/\(path)/\(index)")
+          Task { @MainActor [weak self] in
+            self?.setSyncState(.syncing("Scanning …/\(path)/\(index)"), for: syncProfileId)
+          }
         }
         let fullScanRequest = try wallet.startFullScan()
           .inspectSpksForAllKeychains(inspector: inspector)
           .build()
 
         addToLog("Full scan request built")
-        syncState = .syncing("Scanning addresses…")
-        let update = try client.fullScan(
-          request: fullScanRequest,
-          stopGap: UInt64(gapLimit),
-          batchSize: 50,
-          fetchPrevTxouts: true
-        )
+        setSyncState(.syncing("Scanning addresses…"), for: syncProfileId)
+        let update = try await Task.detached { [client] in
+          try client.fullScan(
+            request: fullScanRequest,
+            stopGap: UInt64(gapLimit),
+            batchSize: 50,
+            fetchPrevTxouts: true
+          )
+        }.value
+
+        // Bail out if wallet was switched during the network scan
+        guard currentProfile?.id == syncProfileId else {
+          addToLog("Sync cancelled: wallet switched during full scan")
+          return
+        }
+        try Task.checkCancellation()
+
         addToLog("Full scan update received from server")
-        syncState = .syncing("Applying update…")
+        setSyncState(.syncing("Applying update…"), for: syncProfileId)
         try wallet.applyUpdate(update: update)
         addToLog("Full scan update applied to wallet")
         needsFullScan = false
         lastSyncType = .fullScan
-        if let profileId = currentProfile?.id {
+        if let profileId = syncProfileId {
           UserDefaults.standard.set(Date(), forKey: "lastFullScanDate_\(profileId.uuidString)")
         }
       } else {
         addToLog("Starting incremental sync")
 
         let inspector = SyncProgressInspector { [weak self] _, total in
-          self?.syncState = .syncing("Checking \(total) scripts…")
+          Task { @MainActor [weak self] in
+            self?.setSyncState(.syncing("Checking \(total) scripts…"), for: syncProfileId)
+          }
         }
         let syncRequest = try wallet.startSyncWithRevealedSpks()
           .inspectSpks(inspector: inspector)
           .build()
 
         addToLog("Sync request built")
-        syncState = .syncing("Refreshing transactions…")
-        let update = try client.sync(
-          request: syncRequest,
-          batchSize: 50,
-          fetchPrevTxouts: true
-        )
+        setSyncState(.syncing("Refreshing transactions…"), for: syncProfileId)
+        let update = try await Task.detached { [client] in
+          try client.sync(
+            request: syncRequest,
+            batchSize: 50,
+            fetchPrevTxouts: true
+          )
+        }.value
+
+        // Bail out if wallet was switched during the network sync
+        guard currentProfile?.id == syncProfileId else {
+          addToLog("Sync cancelled: wallet switched during incremental sync")
+          return
+        }
+        try Task.checkCancellation()
+
         addToLog("Sync update received from server")
-        syncState = .syncing("Applying update…")
+        setSyncState(.syncing("Applying update…"), for: syncProfileId)
         try wallet.applyUpdate(update: update)
         addToLog("Sync update applied to wallet")
         lastSyncType = .incremental
       }
 
-      syncState = .syncing("Saving…")
-      if let persister {
+      // Final identity check before persisting
+      guard currentProfile?.id == syncProfileId else {
+        addToLog("Sync cancelled: wallet switched before persist")
+        return
+      }
+
+      setSyncState(.syncing("Saving…"), for: syncProfileId)
+      if let syncPersister {
         addToLog("Persisting wallet state")
-        _ = try wallet.persist(persister: persister)
+        _ = try wallet.persist(persister: syncPersister)
       }
 
       // Update chain tip height for confirmation count calculation
       addToLog("Fetching chain tip height")
-      if let header = try? client.blockHeadersSubscribe() {
+      if let header = await Task.detached(operation: { [client] in try? client.blockHeadersSubscribe() }).value {
+        guard currentProfile?.id == syncProfileId else {
+          addToLog("Sync cancelled: wallet switched during chain tip fetch")
+          return
+        }
         chainTipHeight = UInt32(header.height)
         addToLog("Chain tip height: \(chainTipHeight)")
+      }
+
+      // Verify wallet identity one more time after final await
+      guard currentProfile?.id == syncProfileId else {
+        addToLog("Sync completed but wallet switched — discarding results")
+        return
       }
 
       updateCachedData()
@@ -286,12 +427,17 @@ final class BitcoinService {
 
       let now = Date()
       lastSyncDate = now
-      syncState = .synced(now)
+      electrumVerified = true
+      electrumConnectionError = nil
+      setSyncState(.synced(now), for: syncProfileId)
       addToLog("Sync completed successfully")
     } catch {
       let errorMsg = "\(error)"
       addToLog("Sync failed with error: \(errorMsg)")
-      syncState = .error(errorMsg)
+      let friendly = Self.friendlyElectrumError(error)
+      electrumVerified = false
+      electrumConnectionError = friendly
+      setSyncState(.error(friendly), for: syncProfileId)
       throw error
     }
   }
@@ -301,9 +447,73 @@ final class BitcoinService {
     try await sync()
   }
 
-  func testElectrumConnection(config: ElectrumConfig) async throws {
-    let client = try ElectrumClient(url: config.url)
-    try client.ping()
+  /// Tests connectivity by fetching the chain tip from the server.
+  /// For SSL connections, validates the certificate first with a native TLS check
+  /// to detect self-signed certs before BDK obscures the error.
+  /// Returns the block height on success.
+  @discardableResult
+  func testElectrumConnection(config: ElectrumConfig) async throws -> UInt32 {
+    // Pre-check SSL certificate before handing off to BDK
+    if config.useSSL {
+      try await Self.validateTLSCertificate(host: config.host, port: config.port)
+    }
+
+    let url = config.url
+    let header = try await Task.detached {
+      let client = try ElectrumClient(url: url)
+      return try client.blockHeadersSubscribe()
+    }.value
+    return UInt32(header.height)
+  }
+
+  /// Performs a native TLS handshake to validate the server's certificate.
+  /// Throws a clear error if the certificate is self-signed or untrusted.
+  private static func validateTLSCertificate(host: String, port: UInt16) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      let queue = DispatchQueue(label: "tls-check")
+      let connection = NWConnection(
+        host: NWEndpoint.Host(host),
+        port: NWEndpoint.Port(rawValue: port)!,
+        using: .tls
+      )
+
+      connection.stateUpdateHandler = { state in
+        switch state {
+        case .ready:
+          connection.cancel()
+          continuation.resume()
+        case let .waiting(error):
+          connection.cancel()
+          if case let .tls(osStatus) = error, osStatus == errSecCertificateExpired {
+            continuation.resume(throwing: AppError.electrumConnectionFailed(
+              "SSL certificate expired on \(host):\(port)."
+            ))
+          } else {
+            continuation.resume(throwing: AppError.electrumConnectionFailed(
+              "SSL certificate rejected for \(host):\(port) — the server may use a self-signed certificate. Try using TCP instead of SSL, or use a server with a CA-signed certificate."
+            ))
+          }
+        case let .failed(error):
+          connection.cancel()
+          let desc = error.localizedDescription
+          if desc.contains("certificate") || desc.contains("SSL") || desc.contains("trust") {
+            continuation.resume(throwing: AppError.electrumConnectionFailed(
+              "SSL certificate rejected for \(host):\(port) — the server may use a self-signed certificate. Try using TCP instead of SSL, or use a server with a CA-signed certificate."
+            ))
+          } else {
+            continuation.resume(throwing: AppError.electrumConnectionFailed(
+              "Connection to \(host):\(port) failed: \(desc)"
+            ))
+          }
+        case .cancelled:
+          break
+        default:
+          break
+        }
+      }
+
+      connection.start(queue: queue)
+    }
   }
 
   // MARK: - Data Queries
@@ -317,6 +527,11 @@ final class BitcoinService {
     let network = bdkNetwork(from: currentProfile?.bitcoinNetwork ?? .testnet4)
 
     let txList = wallet.transactions()
+    // Build lookup for O(1) input resolution instead of O(n) per input
+    let txLookup = Dictionary(
+      txList.map { ($0.transaction.computeTxid().description, $0.transaction) },
+      uniquingKeysWith: { first, _ in first }
+    )
     transactions = txList.map { canonicalTx -> TransactionItem in
       let tx = canonicalTx.transaction
       let txid = tx.computeTxid().description
@@ -387,8 +602,8 @@ final class BitcoinService {
         var inputAmount: UInt64 = 0
         var mine = false
         var address = prevTxid.truncatedMiddle() + ":\(prevVout)"
-        if let prevTx = txList.first(where: { $0.transaction.computeTxid().description == prevTxid }) {
-          let prevOutputs = prevTx.transaction.output()
+        if let prevTx = txLookup[prevTxid] {
+          let prevOutputs = prevTx.output()
           if prevVout < prevOutputs.count {
             let prevOut = prevOutputs[Int(prevVout)]
             inputAmount = prevOut.value.toSat()
@@ -513,26 +728,32 @@ final class BitcoinService {
         while revealed.index < info.index {
           revealed = wallet.revealNextAddress(keychain: .external)
         }
-        if let persister {
-          _ = try wallet.persist(persister: persister)
+        guard let persister else {
+          logger.warning("Address revealed without persister — derivation state may be lost")
+          return (info.address.description, info.index)
         }
+        _ = try wallet.persist(persister: persister)
         return (info.address.description, info.index)
       }
     }
     // All peeked addresses are used — reveal a new one
     let info = wallet.revealNextAddress(keychain: .external)
-    if let persister {
-      _ = try wallet.persist(persister: persister)
+    guard let persister else {
+      logger.warning("Address revealed without persister — derivation state may be lost")
+      return (info.address.description, info.index)
     }
+    _ = try wallet.persist(persister: persister)
     return (info.address.description, info.index)
   }
 
   func revealNextAddress() throws -> (String, UInt32) {
     guard let wallet else { throw AppError.walletNotLoaded }
     let info = wallet.revealNextAddress(keychain: .external)
-    if let persister {
-      _ = try wallet.persist(persister: persister)
+    guard let persister else {
+      logger.warning("Address revealed without persister — derivation state may be lost")
+      return (info.address.description, info.index)
     }
+    _ = try wallet.persist(persister: persister)
     return (info.address.description, info.index)
   }
 
@@ -871,7 +1092,9 @@ final class BitcoinService {
     }
 
     let (_, tx) = try finalizePSBT(psbtData)
-    return try client.transactionBroadcast(tx: tx).description
+    return try await Task.detached { [client] in
+      try client.transactionBroadcast(tx: tx).description
+    }.value
   }
 
   // MARK: - PSBT Import Validation
@@ -1096,7 +1319,7 @@ final class BitcoinService {
 
   // MARK: - Helpers
 
-  private func bdkNetwork(from network: BitcoinNetwork) -> Network {
+  func bdkNetwork(from network: BitcoinNetwork) -> Network {
     switch network {
     case .mainnet: .bitcoin
     case .testnet4: .testnet4

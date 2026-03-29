@@ -2,12 +2,13 @@ import Foundation
 @testable import hellbender
 import Testing
 
+@MainActor
 struct PSBTTests {
   // MARK: - Helpers
 
   private func loadFixture(_ name: String) -> String? {
     let bundle = Bundle(for: BundleToken.self)
-    guard let path = bundle.path(forResource: name, ofType: "txt", inDirectory: "Fixtures") else { return nil }
+    guard let path = bundle.path(forResource: name, ofType: "txt") else { return nil }
     return try? String(contentsOfFile: path, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
@@ -36,7 +37,7 @@ struct PSBTTests {
   @Test func loadTestPSBTFixture() {
     // Test that the fixture file can be loaded
     let bundle = Bundle(for: BundleToken.self)
-    if let path = bundle.path(forResource: "test_psbt_unsigned", ofType: "txt", inDirectory: "Fixtures") {
+    if let path = bundle.path(forResource: "test_psbt_unsigned", ofType: "txt") {
       let content = try? String(contentsOfFile: path, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
       #expect(content != nil)
       #expect(content?.isEmpty == false)

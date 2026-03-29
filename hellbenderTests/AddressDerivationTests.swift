@@ -2,6 +2,7 @@ import Foundation
 @testable import hellbender
 import Testing
 
+@MainActor
 struct AddressDerivationTests {
   @Test func addressPrefixTestnet() {
     let network = BitcoinNetwork.testnet4

@@ -1,6 +1,9 @@
+import OSLog
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "TransactionListView")
 
 struct TransactionListView: View {
   @Query private var wallets: [WalletProfile]
@@ -28,6 +31,10 @@ struct TransactionListView: View {
 
   private var fiatService: FiatPriceService {
     FiatPriceService.shared
+  }
+
+  private var isPrivate: Bool {
+    wallets.first(where: { $0.isActive })?.privacyMode ?? false
   }
 
   private func txLabel(for txid: String) -> String? {
@@ -79,7 +86,7 @@ struct TransactionListView: View {
 
   private func importLabelsFromFile(result: Result<[URL], Error>) {
     switch result {
-    case .success(let urls):
+    case let .success(urls):
       guard let url = urls.first else { return }
       guard url.startAccessingSecurityScopedResource() else {
         importResult = "Unable to access the selected file."
@@ -96,17 +103,22 @@ struct TransactionListView: View {
 
       guard let profile = bitcoinService.currentProfile else { return }
 
-      let count = LabelService.importBIP329(
-        data: data,
-        walletID: profile.id,
-        cosigners: profile.cosigners,
-        context: modelContext
-      )
+      do {
+        let count = try LabelService.importBIP329(
+          data: data,
+          walletID: profile.id,
+          cosigners: profile.cosigners,
+          context: modelContext
+        )
 
-      if count == 0 {
-        importResult = "No new labels found to import."
-      } else {
-        importResult = "Successfully imported \(count) label\(count == 1 ? "" : "s")."
+        if count == 0 {
+          importResult = "No new labels found to import."
+        } else {
+          importResult = "Successfully imported \(count) label\(count == 1 ? "" : "s")."
+        }
+      } catch {
+        logger.error("Failed to save imported labels: \(error.localizedDescription)")
+        importResult = "Failed to save imported labels."
       }
       showImportResult = true
 
@@ -153,17 +165,22 @@ struct TransactionListView: View {
 
     guard let profile = bitcoinService.currentProfile else { return }
 
-    let count = LabelService.importBIP329(
-      data: data,
-      walletID: profile.id,
-      cosigners: profile.cosigners,
-      context: modelContext
-    )
+    do {
+      let count = try LabelService.importBIP329(
+        data: data,
+        walletID: profile.id,
+        cosigners: profile.cosigners,
+        context: modelContext
+      )
 
-    if count == 0 {
-      importResult = "No new labels found to import."
-    } else {
-      importResult = "Successfully imported \(count) label\(count == 1 ? "" : "s")."
+      if count == 0 {
+        importResult = "No new labels found to import."
+      } else {
+        importResult = "Successfully imported \(count) label\(count == 1 ? "" : "s")."
+      }
+    } catch {
+      logger.error("Failed to save imported labels from QR: \(error.localizedDescription)")
+      importResult = "Failed to save imported labels."
     }
     showImportResult = true
   }
@@ -213,7 +230,11 @@ struct TransactionListView: View {
 
           HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
-              if fiatEnabled, fiatPrimary, let fiatStr = fiatService.formattedSatsToFiat(viewModel.balance) {
+              if isPrivate {
+                Text(Constants.privacyText())
+                  .font(.hbAmountLarge)
+                  .foregroundStyle(Color.hbTextPrimary)
+              } else if fiatEnabled, fiatPrimary, let fiatStr = fiatService.formattedSatsToFiat(viewModel.balance) {
                 Text(fiatStr)
                   .font(.hbAmountLarge)
                   .foregroundStyle(Color.hbTextPrimary)
@@ -230,6 +251,9 @@ struct TransactionListView: View {
                     .foregroundStyle(Color.hbTextSecondary)
                 }
               }
+            }
+            .onLongPressGesture {
+              togglePrivacyMode()
             }
             .onTapGesture(count: 2) {
               if fiatEnabled { fiatPrimary.toggle() }
@@ -375,12 +399,16 @@ struct TransactionListView: View {
     .onChange(of: bitcoinService.syncState) { _, newState in
       viewModel.updateFromService()
       if case .synced = newState, let walletID = bitcoinService.currentProfile?.id {
-        LabelService.propagateAddressLabels(
-          transactions: bitcoinService.transactions,
-          utxos: bitcoinService.utxos,
-          context: modelContext,
-          walletID: walletID
-        )
+        do {
+          try LabelService.propagateAddressLabels(
+            transactions: bitcoinService.transactions,
+            utxos: bitcoinService.utxos,
+            context: modelContext,
+            walletID: walletID
+          )
+        } catch {
+          logger.error("Failed to propagate address labels after sync: \(error.localizedDescription)")
+        }
       }
     }
     .onChange(of: BitcoinService.shared.currentProfile?.id) {
@@ -389,9 +417,23 @@ struct TransactionListView: View {
     }
   }
 
+  private func togglePrivacyMode() {
+    guard let wallet = wallets.first(where: { $0.isActive }) else { return }
+    wallet.privacyMode.toggle()
+    try? modelContext.save()
+    let generator = UIImpactFeedbackGenerator(style: .medium)
+    generator.impactOccurred()
+  }
+
   @ViewBuilder
   private var transactionContent: some View {
-    if viewModel.transactions.isEmpty {
+    if viewModel.transactions.isEmpty, viewModel.isLoading || viewModel.syncState.isSyncing {
+      ScrollView {
+        ProgressView()
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .padding(.top, 150)
+      }
+    } else if viewModel.transactions.isEmpty {
       ScrollView {
         ContentUnavailableView(
           "No Transactions",
@@ -404,7 +446,7 @@ struct TransactionListView: View {
     } else {
       List(viewModel.transactions) { tx in
         NavigationLink(destination: TransactionDetailView(transaction: tx, network: viewModel.network)) {
-          TransactionRowView(transaction: tx, label: txLabel(for: tx.id), showChevron: false, showFiat: fiatEnabled && fiatPrimary)
+          TransactionRowView(transaction: tx, label: txLabel(for: tx.id), showChevron: false, showFiat: fiatEnabled && fiatPrimary, isPrivate: isPrivate)
         }
         .listRowBackground(Color.hbSurface)
       }

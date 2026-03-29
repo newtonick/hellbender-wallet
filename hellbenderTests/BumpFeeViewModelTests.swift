@@ -2,6 +2,7 @@ import Foundation
 @testable import hellbender
 import Testing
 
+@MainActor
 struct BumpFeeViewModelTests {
   /// Helper to create a test transaction
   private func makeTransaction(fee: UInt64 = 500, vsize: UInt64 = 200) -> TransactionItem {

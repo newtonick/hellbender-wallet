@@ -34,7 +34,10 @@ struct SetupWizardView: View {
             case .descriptorImport:
               DescriptorImportView(viewModel: viewModel)
             case .walletName:
-              WalletNameView(viewModel: viewModel)
+              WalletNameView(
+                viewModel: viewModel,
+                onSave: viewModel.creationMode == .importDescriptor ? saveAndFinish : nil
+              )
             case .review:
               WalletReviewView(viewModel: viewModel, onComplete: saveAndFinish)
             }

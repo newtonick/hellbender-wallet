@@ -1,9 +1,13 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "BumpFeeViewModel")
+
 @Observable
-final class BumpFeeViewModel: Identifiable {
+@MainActor
+final class BumpFeeViewModel: Identifiable, PSBTFlowManaging {
   let id = UUID()
   enum Step {
     case feeInput
@@ -52,6 +56,20 @@ final class BumpFeeViewModel: Identifiable {
 
   private let bitcoinService: any BitcoinServiceProtocol
 
+  // MARK: - PSBTFlowManaging
+
+  var psbtBitcoinService: any BitcoinServiceProtocol {
+    bitcoinService
+  }
+
+  func navigateAfterSign() {
+    if needsMoreSignatures {
+      currentStep = .psbtDisplay
+    } else {
+      currentStep = .broadcast
+    }
+  }
+
   var feeRateValue: Double {
     Double(newFeeRate) ?? 0
   }
@@ -69,53 +87,38 @@ final class BumpFeeViewModel: Identifiable {
     return true
   }
 
-  static func formatRate(_ rate: Double) -> String {
-    var s = String(format: "%.2f", rate)
-    if s.contains(".") {
-      while s.hasSuffix("0") {
-        s.removeLast()
-      }
-      if s.hasSuffix(".") { s.removeLast() }
-    }
-    return s
-  }
-
   func applyPreset(_ preset: FeePreset) {
     selectedFeePreset = preset
     if let fees = recommendedFees, let rate = preset.rate(from: fees) {
-      newFeeRate = Self.formatRate(rate)
+      newFeeRate = formatFeeRate(rate)
     }
     // For .custom, preserve the existing newFeeRate value
   }
 
-  var needsMoreSignatures: Bool {
-    signaturesCollected < requiredSignatures
-  }
+  // needsMoreSignatures and signatureProgress provided by PSBTFlowManaging
 
-  var signatureProgress: String {
-    "\(signaturesCollected) of \(requiredSignatures) signatures"
-  }
-
-  init(transaction: TransactionItem, bitcoinService: any BitcoinServiceProtocol = BitcoinService.shared) {
+  init(transaction: TransactionItem, bitcoinService: (any BitcoinServiceProtocol)? = nil) {
+    let service = bitcoinService ?? BitcoinService.shared
     originalTxid = transaction.id
     originalFee = transaction.fee ?? 0
     originalFeeRate = transaction.currentFeeRate
-    self.bitcoinService = bitcoinService
-    requiredSignatures = bitcoinService.requiredSignatures
-    totalCosigners = bitcoinService.totalCosigners
+    self.bitcoinService = service
+    requiredSignatures = service.requiredSignatures
+    totalCosigners = service.totalCosigners
     // Pre-fill custom with the minimum valid bump rate
     let minRate = (originalFeeRate.map { Double($0) } ?? 0.0) + 1.0
-    newFeeRate = BumpFeeViewModel.formatRate(max(minRate, 1.0))
+    newFeeRate = formatFeeRate(max(minRate, 1.0))
   }
 
   /// Initialize from a saved RBF PSBT to resume signing
-  init(savedPSBT: SavedPSBT, bitcoinService: any BitcoinServiceProtocol = BitcoinService.shared) {
+  init(savedPSBT: SavedPSBT, bitcoinService: (any BitcoinServiceProtocol)? = nil) {
+    let service = bitcoinService ?? BitcoinService.shared
     originalTxid = savedPSBT.originalTxid ?? ""
     originalFee = 0
     originalFeeRate = nil
-    self.bitcoinService = bitcoinService
+    self.bitcoinService = service
     requiredSignatures = savedPSBT.requiredSignatures
-    totalCosigners = bitcoinService.totalCosigners
+    totalCosigners = service.totalCosigners
     newFeeRate = savedPSBT.feeRateSatVb
     psbtBytes = savedPSBT.psbtBytes
     psbtBase64 = savedPSBT.psbtBase64
@@ -126,7 +129,7 @@ final class BumpFeeViewModel: Identifiable {
     savedPSBTId = savedPSBT.id
     savedPSBTName = savedPSBT.name
 
-    if let signerInfo = bitcoinService.psbtSignerInfo(savedPSBT.psbtBytes) {
+    if let signerInfo = service.psbtSignerInfo(savedPSBT.psbtBytes) {
       signaturesCollected = signerInfo.totalSignatures
       signerStatus = signerInfo.cosignerSignStatus
     } else {
@@ -143,7 +146,7 @@ final class BumpFeeViewModel: Identifiable {
         self.recommendedFees = rates
       }
     } catch {
-      print("Failed to fetch fee rates: \(error)")
+      logger.error("Failed to fetch fee rates: \(error)")
     }
   }
 
@@ -176,40 +179,7 @@ final class BumpFeeViewModel: Identifiable {
     isProcessing = false
   }
 
-  func handleSignedPSBT(_ signedBytes: Data, modelContext: ModelContext? = nil) async {
-    isProcessing = true
-    do {
-      let previousBytes = psbtBytes
-      let (updatedBase64, updatedBytes) = try await bitcoinService.combinePSBTs(
-        original: psbtBytes,
-        signed: signedBytes
-      )
-      psbtBase64 = updatedBase64
-      psbtBytes = updatedBytes
-
-      // Use PSBT introspection to determine signature count
-      if let signerInfo = bitcoinService.psbtSignerInfo(updatedBytes) {
-        signaturesCollected = signerInfo.totalSignatures
-        signerStatus = signerInfo.cosignerSignStatus
-      } else if updatedBytes != previousBytes {
-        signaturesCollected += 1
-      }
-
-      // Auto-save after each new signature, matching normal send flow
-      if updatedBytes != previousBytes, let context = modelContext {
-        autoSavePSBT(context: context)
-      }
-
-      if needsMoreSignatures {
-        currentStep = .psbtDisplay
-      } else {
-        currentStep = .broadcast
-      }
-    } catch {
-      errorMessage = error.localizedDescription
-    }
-    isProcessing = false
-  }
+  // handleSignedPSBT provided by PSBTFlowManaging default implementation
 
   func finalizeTx() {
     do {
@@ -246,13 +216,7 @@ final class BumpFeeViewModel: Identifiable {
     return "Bump Fee " + formatter.string(from: Date())
   }
 
-  func autoSavePSBT(context: ModelContext) {
-    if savedPSBTId != nil {
-      savePSBT(name: savedPSBTName.isEmpty ? defaultPSBTName() : savedPSBTName, context: context)
-    } else if totalCosigners > 1 {
-      savePSBT(name: defaultPSBTName(), context: context)
-    }
-  }
+  // autoSavePSBT provided by PSBTFlowManaging default implementation
 
   func savePSBT(name: String, context: ModelContext) {
     guard let walletID = BitcoinService.shared.currentProfile?.id else { return }
@@ -274,7 +238,12 @@ final class BumpFeeViewModel: Identifiable {
         existing.changeAddress = changeAddress
         existing.inputCount = inputCount
         existing.inputOutpoints = outpoints
-        try? context.save()
+        do {
+          try context.save()
+        } catch {
+          logger.error("Failed to update saved PSBT: \(error)")
+          errorMessage = "Failed to save PSBT: \(error.localizedDescription)"
+        }
         return
       }
     }
@@ -298,18 +267,15 @@ final class BumpFeeViewModel: Identifiable {
     )
     saved.originalTxid = originalTxid
     context.insert(saved)
-    try? context.save()
-    savedPSBTId = saved.id
-    savedPSBTName = trimmedName
+    do {
+      try context.save()
+      savedPSBTId = saved.id
+      savedPSBTName = trimmedName
+    } catch {
+      logger.error("Failed to save new PSBT: \(error)")
+      errorMessage = "Failed to save PSBT: \(error.localizedDescription)"
+    }
   }
 
-  func deleteSavedPSBT(context: ModelContext) {
-    guard let existingId = savedPSBTId else { return }
-    let descriptor = FetchDescriptor<SavedPSBT>(predicate: #Predicate { $0.id == existingId })
-    if let existing = try? context.fetch(descriptor).first {
-      context.delete(existing)
-      try? context.save()
-    }
-    savedPSBTId = nil
-  }
+  // deleteSavedPSBT provided by PSBTFlowManaging default implementation
 }

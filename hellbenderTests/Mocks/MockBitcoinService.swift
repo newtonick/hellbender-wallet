@@ -2,6 +2,7 @@ import Foundation
 @testable import hellbender
 
 /// Configurable mock for testing ViewModels without BDK dependencies
+@MainActor
 final class MockBitcoinService: BitcoinServiceProtocol {
   // MARK: - Properties
 

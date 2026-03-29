@@ -12,6 +12,10 @@ struct WalletDashboardView: View {
     FiatPriceService.shared
   }
 
+  private var isPrivate: Bool {
+    BitcoinService.shared.currentProfile?.privacyMode ?? false
+  }
+
   private var transactions: [TransactionItem] {
     bitcoinService.transactions
   }
@@ -81,10 +85,10 @@ struct WalletDashboardView: View {
                 Text("Total Balance")
                   .font(.hbLabel())
                   .foregroundStyle(Color.hbTextSecondary)
-                Text(confirmedBalance.formattedSats)
+                Text(isPrivate ? Constants.privacyText() : confirmedBalance.formattedSats)
                   .font(.hbAmountLarge)
                   .foregroundStyle(Color.hbTextPrimary)
-                if fiatEnabled, let fiat = fiatService.formattedSatsToFiat(confirmedBalance) {
+                if !isPrivate, fiatEnabled, let fiat = fiatService.formattedSatsToFiat(confirmedBalance) {
                   Text(fiat)
                     .font(.hbBody(15))
                     .foregroundStyle(Color.hbTextSecondary)
@@ -97,7 +101,7 @@ struct WalletDashboardView: View {
               HStack {
                 Image(systemName: "clock")
                   .font(.system(size: 11))
-                Text("\(mempoolBalance.formattedSats) unconfirmed")
+                Text(isPrivate ? "\(Constants.privacyText()) unconfirmed" : "\(mempoolBalance.formattedSats) unconfirmed")
                   .font(.hbLabel(12))
                 Spacer()
               }
@@ -133,12 +137,12 @@ struct WalletDashboardView: View {
             DashboardMetricCard(
               icon: "equal.circle",
               label: "Avg UTXO Size",
-              value: avgUTXOSize.formattedSats
+              value: isPrivate ? Constants.privacyText() : avgUTXOSize.formattedSats
             )
             DashboardMetricCard(
               icon: "creditcard",
               label: "Total Fees Paid",
-              value: totalFeesPaid > 0 ? totalFeesPaid.formattedSats : "—"
+              value: isPrivate ? Constants.privacyText() : (totalFeesPaid > 0 ? totalFeesPaid.formattedSats : "—")
             )
             if let age = avgUTXOAge {
               DashboardMetricCard(

@@ -1,12 +1,16 @@
 import AVFoundation
 import Bbqr
 import Combine
+import OSLog
 import SwiftUI
 import URKit
 import URUI
 
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "URScannerSheet")
+
 struct URScannerSheet: View {
   let onResult: (AppURResult) -> Void
+  let preferMacroCamera: Bool
 
   @StateObject private var videoSession: URVideoSession
   @StateObject private var scanState: URScanState
@@ -20,10 +24,11 @@ struct URScannerSheet: View {
 
   private let codesPublisher: URCodesPublisher
 
-  init(onResult: @escaping (AppURResult) -> Void) {
+  init(preferMacroCamera: Bool = false, onResult: @escaping (AppURResult) -> Void) {
     self.onResult = onResult
+    self.preferMacroCamera = preferMacroCamera
     let publisher = URCodesPublisher()
-    self.codesPublisher = publisher
+    codesPublisher = publisher
     _videoSession = StateObject(wrappedValue: URVideoSession(codesPublisher: publisher))
     _scanState = StateObject(wrappedValue: URScanState(codesPublisher: publisher))
   }
@@ -66,6 +71,9 @@ struct URScannerSheet: View {
       }
     }
     .onAppear {
+      if preferMacroCamera {
+        switchToMacroCameraIfAvailable()
+      }
       configureCameraForCloseScanning()
     }
     .onReceive(scanState.resultPublisher) { result in
@@ -78,6 +86,8 @@ struct URScannerSheet: View {
       case let .other(code):
         if let hdKeyResult = URService.parseTextEncodedXpub(code) {
           onResult(hdKeyResult)
+        } else if let descriptor = URService.extractDescriptorFromJSON(code) {
+          onResult(.descriptor(descriptor))
         } else {
           handlePossibleBBQR(code)
         }
@@ -94,15 +104,47 @@ struct URScannerSheet: View {
     return estimatedPercent
   }
 
+  private func switchToMacroCameraIfAvailable() {
+    // Discover a virtual multi-camera device (dual-wide or triple) which
+    // supports automatic macro switching on iPhone 13 Pro+.
+    let preferredTypes: [AVCaptureDevice.DeviceType] = [
+      .builtInTripleCamera,
+      .builtInDualWideCamera,
+    ]
+    let discovery = AVCaptureDevice.DiscoverySession(
+      deviceTypes: preferredTypes,
+      mediaType: .video,
+      position: .back
+    )
+    if let macroDevice = discovery.devices.first {
+      videoSession.setCaptureDevice(macroDevice)
+      logger.info("Switched to macro-capable camera: \(macroDevice.localizedName)")
+    }
+  }
+
   private func configureCameraForCloseScanning() {
     guard let device = videoSession.currentCaptureDevice else { return }
     try? device.lockForConfiguration()
-    if device.isAutoFocusRangeRestrictionSupported {
-      device.autoFocusRangeRestriction = .near
-    }
+
+    // Continuous autofocus restricted to near range for close-up QR codes
     if device.isFocusModeSupported(.continuousAutoFocus) {
       device.focusMode = .continuousAutoFocus
     }
+    if device.isAutoFocusRangeRestrictionSupported {
+      device.autoFocusRangeRestriction = .near
+    }
+
+    // Center the focus point for QR codes held in front of the camera
+    if device.isFocusPointOfInterestSupported {
+      device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+    }
+
+    // Geometric distortion correction improves QR readability when the
+    // ultra-wide lens engages for macro mode (iPhone 13 Pro+)
+    if device.isGeometricDistortionCorrectionSupported {
+      device.isGeometricDistortionCorrectionEnabled = true
+    }
+
     device.unlockForConfiguration()
   }
 
@@ -134,7 +176,7 @@ struct URScannerSheet: View {
         }
       }
     } catch {
-      print("BBQRScan: Error processing part: \(error)")
+      logger.error("BBQR error processing part: \(error)")
     }
   }
 }

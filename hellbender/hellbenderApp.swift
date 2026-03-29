@@ -6,9 +6,25 @@ struct hellbenderApp: App {
   let modelContainer: ModelContainer
 
   init() {
+    #if DEBUG
+      if CommandLine.arguments.contains("-UITesting") {
+        // Clear UserDefaults so the app starts fresh (shows setup wizard)
+        if let bundleID = Bundle.main.bundleIdentifier {
+          UserDefaults.standard.removePersistentDomain(forName: bundleID)
+        }
+        // Clear Keychain (PIN, lockout state)
+        KeychainHelper.deleteAll()
+      }
+    #endif
+
     do {
       let schema = Schema([WalletProfile.self, CosignerInfo.self, WalletLabel.self, FrozenUTXO.self, SavedPSBT.self])
-      let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+      #if DEBUG
+        let isUITesting = CommandLine.arguments.contains("-UITesting")
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: isUITesting)
+      #else
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+      #endif
       modelContainer = try ModelContainer(for: schema, configurations: [config])
       BitcoinService.shared.modelContainer = modelContainer
     } catch {

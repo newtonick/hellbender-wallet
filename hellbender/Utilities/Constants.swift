@@ -29,6 +29,15 @@ enum Constants {
   static let qrDensityKey = "qrDensity"
   static let qrFrameRateKey = "qrFrameRate"
   static let themeKey = "appTheme"
+  static let appLockTimeoutKey = "appLockTimeout"
+  static let appLockPINEnabledKey = "appLockPINEnabled"
+
+  // MARK: - Keychain Keys
+
+  static let keychainPINHashKey = "com.hellbender.pin.hash"
+  static let keychainPINLengthKey = "com.hellbender.pin.length"
+  static let keychainFailedAttemptsKey = "com.hellbender.pin.failedAttempts"
+  static let keychainLockoutExpiryKey = "com.hellbender.pin.lockoutExpiry"
 
   /// Available auto-refresh intervals in seconds
   static let autoRefreshStops: [Double] = [30, 60, 120, 300, 600]
@@ -41,7 +50,7 @@ enum Constants {
   // MARK: - Limits
 
   static let maxCosigners = 10
-  static let minCosigners = 2
+  static let minCosigners = 1
   static let maxAddressGap = 50
 
   static func derivationPath(for network: BitcoinNetwork) -> String {
@@ -59,5 +68,17 @@ enum Constants {
 
   static func walletDatabasePath(for walletID: UUID) -> URL {
     walletDirectory(for: walletID).appendingPathComponent(bdkDatabaseFilename)
+  }
+
+  // MARK: - Privacy Mode
+
+  private static let privacySymbols: [Character] = [
+    "⠁", "⠃", "⠉", "⠙", "⠑", "⠋", "⠛", "⠓", "⠊", "⠚",
+    "⠅", "⠇", "⠍", "⠝", "⠕", "⠏", "⠟", "⠗", "⠎", "⠞",
+    "⠥", "⠧", "⠺", "⠭", "⠽", "⠵",
+  ]
+
+  static func privacyText(length: Int = 5) -> String {
+    String((0 ..< length).map { _ in privacySymbols.randomElement()! })
   }
 }

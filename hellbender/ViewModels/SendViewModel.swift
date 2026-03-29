@@ -1,83 +1,13 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 
-struct Recipient: Identifiable {
-  let id = UUID()
-  var address: String = ""
-  var amountSats: String = ""
-  var isSendMax: Bool = false
-  var label: String = ""
-
-  var amountValue: UInt64? {
-    UInt64(amountSats)
-  }
-
-  var isAddressEmpty: Bool {
-    address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-  }
-
-  var isValidAddress: Bool {
-    !isAddressEmpty
-  }
-
-  /// Checks if the address looks like a valid Bitcoin address format
-  func isAddressFormatValid(network: BitcoinNetwork?) -> Bool {
-    let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return true } // empty is not "invalid format", just missing
-    guard let network else { return true }
-
-    let prefix = network.addressPrefix
-    // Accept bech32/bech32m addresses for the current network
-    if trimmed.lowercased().hasPrefix(prefix) {
-      return trimmed.count >= prefix.count + 10 // minimum reasonable length
-    }
-    // Also accept legacy P2SH (3...) and P2PKH (1...) on mainnet
-    if network == .mainnet, trimmed.hasPrefix("3") || trimmed.hasPrefix("1") {
-      return trimmed.count >= 26 && trimmed.count <= 35
-    }
-    // Accept testnet P2SH (2...) and P2PKH (m.../n...)
-    if network != .mainnet, trimmed.hasPrefix("2") || trimmed.hasPrefix("m") || trimmed.hasPrefix("n") {
-      return trimmed.count >= 26 && trimmed.count <= 35
-    }
-    return false
-  }
-
-  var isValidAmount: Bool {
-    guard let amount = amountValue else { return false }
-    return amount > 0
-  }
-
-  var isAmountEmpty: Bool {
-    amountSats.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-  }
-}
-
-enum FeePreset: CaseIterable {
-  case fast, medium, slow, custom
-
-  var displayName: String {
-    switch self {
-    case .fast: "Fast"
-    case .medium: "Medium"
-    case .slow: "Slow"
-    case .custom: "Custom"
-    }
-  }
-
-  func rate(from fees: BitcoinService.RecommendedFees?) -> Double? {
-    guard let fees else { return nil }
-    switch self {
-    case .fast: return fees.fast
-    case .medium: return fees.medium
-    case .slow: return fees.slow
-    case .custom: return nil
-    }
-  }
-}
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "SendViewModel")
 
 @Observable
-final class SendViewModel {
+@MainActor
+final class SendViewModel: PSBTFlowManaging {
   enum Step: Int, CaseIterable {
     case recipients
     case review
@@ -144,8 +74,22 @@ final class SendViewModel {
 
   private let bitcoinService: any BitcoinServiceProtocol
 
-  init(bitcoinService: any BitcoinServiceProtocol = BitcoinService.shared) {
-    self.bitcoinService = bitcoinService
+  // MARK: - PSBTFlowManaging
+
+  var psbtBitcoinService: any BitcoinServiceProtocol {
+    bitcoinService
+  }
+
+  func navigateAfterSign() {
+    if needsMoreSignatures {
+      currentStep = .psbtDisplay
+    } else {
+      currentStep = .broadcast
+    }
+  }
+
+  init(bitcoinService: (any BitcoinServiceProtocol)? = nil) {
+    self.bitcoinService = bitcoinService ?? BitcoinService.shared
   }
 
   var frozenOutpoints: Set<String> = []
@@ -264,13 +208,7 @@ final class SendViewModel {
     totalSendAmount + totalFee + (changeAmount ?? 0)
   }
 
-  var signatureProgress: String {
-    "\(signaturesCollected) of \(requiredSignatures) signatures"
-  }
-
-  var needsMoreSignatures: Bool {
-    signaturesCollected < requiredSignatures
-  }
+  // signatureProgress and needsMoreSignatures provided by PSBTFlowManaging
 
   func loadBalance() {
     availableBalance = spendableUTXOs.reduce(0) { $0 + $1.amount }
@@ -410,26 +348,15 @@ final class SendViewModel {
         applyPreset(selectedFeePreset)
       }
     } catch {
-      print("Failed to fetch fee rates: \(error)")
+      logger.error("Failed to fetch fee rates: \(error)")
     }
   }
 
   func applyPreset(_ preset: FeePreset) {
     selectedFeePreset = preset
     if let rate = preset.rate(from: recommendedFees) {
-      feeRateSatVb = formatRate(rate)
+      feeRateSatVb = formatFeeRate(rate)
     }
-  }
-
-  private func formatRate(_ rate: Double) -> String {
-    var s = String(format: "%.2f", rate)
-    if s.contains(".") {
-      while s.hasSuffix("0") {
-        s.removeLast()
-      }
-      if s.hasSuffix(".") { s.removeLast() }
-    }
-    return s
   }
 
   /// Recalculate the max amount for whichever recipient has isSendMax
@@ -470,81 +397,49 @@ final class SendViewModel {
 
   /// Parse a BIP-21 URI or plain address string
   func parseBIP21(_ input: String, forRecipientAt index: Int) {
-    let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-
-    // Check for BIP-21 URI: bitcoin:address?amount=0.001&label=...
-    guard let url = URL(string: trimmed),
-          let scheme = url.scheme?.lowercased(),
-          scheme == "bitcoin" || scheme == "BITCOIN".lowercased()
-    else {
-      // Plain address
-      recipients[index].address = trimmed
-      return
-    }
-
-    // Extract address from path
-    let address: String
-    if let host = url.host(percentEncoded: false), !host.isEmpty {
-      address = host
-    } else {
-      // bitcoin:tb1q... — opaque path
-      let stripped = trimmed.drop(while: { $0 != ":" }).dropFirst()
-      let addrPart = stripped.prefix(while: { $0 != "?" })
-      address = String(addrPart)
-    }
-
-    recipients[index].address = address
-
-    // Parse query parameters
-    if let components = URLComponents(string: trimmed) {
-      for item in components.queryItems ?? [] {
-        switch item.name.lowercased() {
-        case "amount":
-          // BIP-21 amount is in BTC, convert to sats
-          if let btcString = item.value, let btc = Double(btcString) {
-            let sats = UInt64(btc * 100_000_000)
-            recipients[index].amountSats = "\(sats)"
-            recipients[index].isSendMax = false
-          }
-        default:
-          break
-        }
-      }
-    }
+    recipients[index].parseBIP21(input)
   }
 
   // MARK: - PSBT Operations
+
+  private var recipientList: [(address: String, amount: UInt64, isSendMax: Bool)] {
+    recipients.map { r in
+      (address: r.address.trimmingCharacters(in: .whitespacesAndNewlines),
+       amount: r.amountValue ?? 0,
+       isSendMax: r.isSendMax)
+    }
+  }
+
+  private var selectedUTXOOutpoints: [(txid: String, vout: UInt32)]? {
+    manualUTXOSelection
+      ? allUTXOs.filter { selectedUTXOIds.contains($0.id) }.map { (txid: $0.txid, vout: $0.vout) }
+      : nil
+  }
+
+  /// Apply PSBT creation result to view model state
+  private func applyPSBTResult(_ result: BitcoinService.PSBTResult) {
+    psbtBase64 = result.base64
+    psbtBytes = result.bytes
+    totalFee = result.fee
+    changeAmount = result.changeAmount
+    changeAddress = result.changeAddress
+    inputCount = result.inputCount
+    if let signerInfo = bitcoinService.psbtSignerInfo(result.bytes) {
+      signerStatus = signerInfo.cosignerSignStatus
+    }
+  }
 
   /// Build a draft PSBT to populate fee/change details, then navigate to review
   private func buildDraftPSBT() async {
     isProcessing = true
     do {
-      let recipientList = recipients.map { r in
-        (address: r.address.trimmingCharacters(in: .whitespacesAndNewlines),
-         amount: r.amountValue ?? 0,
-         isSendMax: r.isSendMax)
-      }
-
-      let utxoOutpoints: [(txid: String, vout: UInt32)]? = manualUTXOSelection
-        ? allUTXOs.filter { selectedUTXOIds.contains($0.id) }.map { (txid: $0.txid, vout: $0.vout) }
-        : nil
-
       let result = try await bitcoinService.createPSBT(
         recipients: recipientList,
         feeRate: feeRateValue,
-        utxos: utxoOutpoints,
+        utxos: selectedUTXOOutpoints,
         unspendable: frozenOutpoints
       )
-      psbtBase64 = result.base64
-      psbtBytes = result.bytes
-      totalFee = result.fee
-      changeAmount = result.changeAmount
-      changeAddress = result.changeAddress
-      inputCount = result.inputCount
-      // Initialize cosigner signing status (all unsigned)
-      if let signerInfo = bitcoinService.psbtSignerInfo(result.bytes) {
-        signerStatus = signerInfo.cosignerSignStatus
-      }
+      applyPSBTResult(result)
       currentStep = .review
     } catch {
       errorMessage = error.localizedDescription
@@ -553,24 +448,13 @@ final class SendViewModel {
   }
 
   func createPSBT() async {
-    let recipientList = recipients.map { r in
-      (address: r.address.trimmingCharacters(in: .whitespacesAndNewlines),
-       amount: r.amountValue ?? 0,
-       isSendMax: r.isSendMax)
-    }
-
     guard recipientList.allSatisfy({ !$0.address.isEmpty && ($0.amount > 0 || $0.isSendMax) }) else {
       errorMessage = "Invalid recipient or amount"
       return
     }
 
-    let utxoOutpoints: [(txid: String, vout: UInt32)]? = manualUTXOSelection
-      ? allUTXOs.filter { selectedUTXOIds.contains($0.id) }.map { (txid: $0.txid, vout: $0.vout) }
-      : nil
-
     // For manual selection, guard against spending a UTXO the user has frozen.
-    // (BDK lets addUtxos() override the unspendable list, so this stays at app layer.)
-    if let validationError = validateUTXOInputs(outpoints: utxoOutpoints) {
+    if let validationError = validateUTXOInputs(outpoints: selectedUTXOOutpoints) {
       errorMessage = validationError
       return
     }
@@ -580,20 +464,11 @@ final class SendViewModel {
       let result = try await bitcoinService.createPSBT(
         recipients: recipientList,
         feeRate: feeRateValue,
-        utxos: utxoOutpoints,
+        utxos: selectedUTXOOutpoints,
         unspendable: frozenOutpoints
       )
-      psbtBase64 = result.base64
-      psbtBytes = result.bytes
-      totalFee = result.fee
-      changeAmount = result.changeAmount
-      changeAddress = result.changeAddress
-      inputCount = result.inputCount
+      applyPSBTResult(result)
       signaturesCollected = 0
-      // Initialize cosigner signing status (all unsigned)
-      if let signerInfo = bitcoinService.psbtSignerInfo(result.bytes) {
-        signerStatus = signerInfo.cosignerSignStatus
-      }
       currentStep = .psbtDisplay
     } catch {
       errorMessage = error.localizedDescription
@@ -601,41 +476,7 @@ final class SendViewModel {
     isProcessing = false
   }
 
-  func handleSignedPSBT(_ signedBytes: Data, modelContext: ModelContext? = nil) async {
-    isProcessing = true
-    do {
-      let previousBytes = psbtBytes
-      let (updatedBase64, updatedBytes) = try await bitcoinService.combinePSBTs(
-        original: psbtBytes,
-        signed: signedBytes
-      )
-      psbtBase64 = updatedBase64
-      psbtBytes = updatedBytes
-
-      // Use PSBT introspection to determine signer status
-      if let signerInfo = bitcoinService.psbtSignerInfo(updatedBytes) {
-        signaturesCollected = signerInfo.totalSignatures
-        signerStatus = signerInfo.cosignerSignStatus
-      } else if updatedBytes != previousBytes {
-        // Fallback: if psbtSignerInfo unavailable (e.g. no bip32_derivation),
-        // increment count based on byte change
-        signaturesCollected += 1
-      }
-
-      if updatedBytes != previousBytes, let context = modelContext {
-        autoSavePSBT(context: context)
-      }
-
-      if needsMoreSignatures {
-        currentStep = .psbtDisplay
-      } else {
-        currentStep = .broadcast
-      }
-    } catch {
-      errorMessage = error.localizedDescription
-    }
-    isProcessing = false
-  }
+  // handleSignedPSBT provided by PSBTFlowManaging default implementation
 
   func finalizeTx() {
     guard finalizedTxBytes.isEmpty else { return }
@@ -651,10 +492,6 @@ final class SendViewModel {
     do {
       let txid = try await bitcoinService.broadcastPSBT(psbtBytes)
       broadcastTxid = txid
-      // Trigger sync after broadcast to update wallet state
-      Task {
-        try? await bitcoinService.sync()
-      }
     } catch {
       errorMessage = error.localizedDescription
     }
@@ -705,7 +542,12 @@ final class SendViewModel {
         existing.manualUTXOSelection = manualUTXOSelection
         existing.selectedUTXOIds = utxoIdsString
         existing.inputOutpoints = outpoints
-        try? context.save()
+        do {
+          try context.save()
+        } catch {
+          logger.error("Failed to update saved PSBT: \(error)")
+          errorMessage = "Failed to save PSBT: \(error.localizedDescription)"
+        }
         return
       }
     }
@@ -728,31 +570,20 @@ final class SendViewModel {
       inputOutpoints: outpoints
     )
     context.insert(saved)
-    try? context.save()
-    savedPSBTId = saved.id
-  }
-
-  func autoSavePSBT(context: ModelContext) {
-    if savedPSBTId != nil {
-      // Always update an existing saved PSBT (e.g. after adding a signature)
-      savePSBT(name: savedPSBTName.isEmpty ? defaultPSBTName() : savedPSBTName, context: context)
-    } else if totalCosigners > 1 {
-      // Auto-create for any multisig wallet (including 1-of-N where M=1 but N>1)
-      savePSBT(name: defaultPSBTName(), context: context)
+    do {
+      try context.save()
+      savedPSBTId = saved.id
+    } catch {
+      logger.error("Failed to save new PSBT: \(error)")
+      errorMessage = "Failed to save PSBT: \(error.localizedDescription)"
     }
   }
 
+  // autoSavePSBT provided by PSBTFlowManaging default implementation
+
   func loadSavedPSBT(_ saved: SavedPSBT) {
-    // Restore recipients
     if let decoded = try? JSONDecoder().decode([SavedRecipient].self, from: saved.recipientsJSON) {
-      recipients = decoded.map { sr in
-        var r = Recipient()
-        r.address = sr.address
-        r.amountSats = sr.amountSats
-        r.isSendMax = sr.isSendMax
-        r.label = sr.label
-        return r
-      }
+      recipients = decoded.map(Recipient.init(from:))
     }
 
     feeRateSatVb = saved.feeRateSatVb
@@ -782,15 +613,7 @@ final class SendViewModel {
     currentStep = .review
   }
 
-  func deleteSavedPSBT(context: ModelContext) {
-    guard let existingId = savedPSBTId else { return }
-    let descriptor = FetchDescriptor<SavedPSBT>(predicate: #Predicate { $0.id == existingId })
-    if let existing = try? context.fetch(descriptor).first {
-      context.delete(existing)
-      try? context.save()
-    }
-    savedPSBTId = nil
-  }
+  // deleteSavedPSBT provided by PSBTFlowManaging default implementation
 
   // MARK: - Import PSBT
 
@@ -798,15 +621,7 @@ final class SendViewModel {
     do {
       let result = try bitcoinService.validateAndParseImportedPSBT(psbtData, frozenOutpoints: frozenOutpoints)
 
-      // Populate view model state from parsed PSBT
-      recipients = result.recipients.map { sr in
-        var r = Recipient()
-        r.address = sr.address
-        r.amountSats = sr.amountSats
-        r.isSendMax = sr.isSendMax
-        r.label = sr.label
-        return r
-      }
+      recipients = result.recipients.map(Recipient.init(from:))
 
       feeRateSatVb = result.feeRateSatVb
       totalFee = result.fee
@@ -856,8 +671,9 @@ final class SendViewModel {
     recipients = [Recipient()]
     amountInFiat = false
     fiatDisplayAmount.removeAll()
+    feeRateSatVb = ""
+    recommendedFees = nil
     selectedFeePreset = .medium
-    applyPreset(.medium)
     psbtBase64 = ""
     psbtBytes = Data()
     totalFee = 0

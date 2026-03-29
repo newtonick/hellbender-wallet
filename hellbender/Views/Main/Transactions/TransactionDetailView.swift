@@ -1,5 +1,8 @@
+import OSLog
 import SwiftData
 import SwiftUI
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "TransactionDetailView")
 
 struct TransactionDetailView: View {
   let transaction: TransactionItem
@@ -14,6 +17,10 @@ struct TransactionDetailView: View {
   @State private var editedLabel: String = ""
   @State private var showBumpFee = false
 
+  private var isPrivate: Bool {
+    BitcoinService.shared.currentProfile?.privacyMode ?? false
+  }
+
   var body: some View {
     ScrollView {
       VStack(spacing: 20) {
@@ -23,7 +30,11 @@ struct TransactionDetailView: View {
             .font(.system(size: 44))
             .foregroundStyle(transaction.isIncoming ? Color.hbSuccess : Color.hbBitcoinOrange)
 
-          if fiatEnabled, fiatPrimary, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(transaction.amount) {
+          if isPrivate {
+            Text(Constants.privacyText())
+              .font(.hbAmountMedium)
+              .foregroundStyle(Color.hbTextPrimary)
+          } else if fiatEnabled, fiatPrimary, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(transaction.amount) {
             Text(fiatStr)
               .font(.hbAmountMedium)
               .foregroundStyle(Color.hbTextPrimary)
@@ -101,26 +112,36 @@ struct TransactionDetailView: View {
             .foregroundStyle(Color.hbTextSecondary)
 
           HStack(alignment: .top, spacing: 8) {
-            Text(transaction.id)
-              .font(.hbMono(11))
-              .foregroundStyle(Color.hbTextPrimary)
-              .textSelection(.enabled)
+            Group {
+              if isPrivate {
+                Text(Constants.privacyText(length: 8))
+                  .font(.hbMono(11))
+                  .foregroundStyle(Color.hbTextPrimary)
+              } else {
+                Text(transaction.id)
+                  .font(.hbMono(11))
+                  .foregroundStyle(Color.hbTextPrimary)
+                  .textSelection(.enabled)
+              }
+            }
 
             Spacer()
 
-            Button(action: {
-              UIPasteboard.general.string = transaction.id
-            }) {
-              Image(systemName: "doc.on.doc")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.hbSteelBlue)
-            }
-
-            if let network, let url = network.explorerTxURL(txid: transaction.id, customHost: BitcoinService.shared.currentProfile?.blockExplorerHost) {
-              Link(destination: url) {
-                Image(systemName: "arrow.up.right.square")
+            if !isPrivate {
+              Button(action: {
+                UIPasteboard.general.string = transaction.id
+              }) {
+                Image(systemName: "doc.on.doc")
                   .font(.system(size: 14))
                   .foregroundStyle(Color.hbSteelBlue)
+              }
+
+              if let network, let url = network.explorerTxURL(txid: transaction.id, customHost: BitcoinService.shared.currentProfile?.blockExplorerHost) {
+                Link(destination: url) {
+                  Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.hbSteelBlue)
+                }
               }
             }
           }
@@ -179,14 +200,14 @@ struct TransactionDetailView: View {
 
           if let fee = transaction.fee {
             DetailRow(label: "Fee") {
-              Text(fee.formattedSats)
+              Text(isPrivate ? Constants.privacyText() : fee.formattedSats)
                 .font(.hbMono())
                 .foregroundStyle(Color.hbTextPrimary)
             }
 
             if let rate = transaction.currentFeeRate {
               DetailRow(label: "Fee Rate") {
-                Text(String(format: rate == rate.rounded() ? "%.0f sat/vB" : "%.2f sat/vB", rate))
+                Text(isPrivate ? Constants.privacyText() : String(format: rate == rate.rounded() ? "%.0f sat/vB" : "%.2f sat/vB", rate))
                   .font(.hbMono())
                   .foregroundStyle(Color.hbTextPrimary)
               }
@@ -197,7 +218,7 @@ struct TransactionDetailView: View {
 
         // Flow diagram
         if !transaction.inputs.isEmpty || !transaction.outputs.isEmpty {
-          TransactionDetailFlowDiagram(transaction: transaction)
+          TransactionDetailFlowDiagram(transaction: transaction, isPrivate: isPrivate)
             .hbCard()
         }
 
@@ -211,7 +232,7 @@ struct TransactionDetailView: View {
             ForEach(transaction.inputs) { input in
               HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                  Text(input.address)
+                  Text(isPrivate ? Constants.privacyText(length: 8) : input.address)
                     .font(.hbMono(11))
                     .foregroundStyle(Color.hbTextPrimary)
                     .lineLimit(1)
@@ -219,7 +240,7 @@ struct TransactionDetailView: View {
                 }
                 Spacer()
                 if input.amount > 0 {
-                  Text(input.amount.formattedSats)
+                  Text(isPrivate ? Constants.privacyText() : input.amount.formattedSats)
                     .font(.hbMono(12))
                     .foregroundStyle(Color.hbTextPrimary)
                 }
@@ -245,15 +266,22 @@ struct TransactionDetailView: View {
               VStack(alignment: .leading, spacing: 4) {
                 HStack {
                   VStack(alignment: .leading, spacing: 2) {
-                    Text(output.address)
-                      .font(.hbMono(11))
-                      .foregroundStyle(Color.hbTextPrimary)
-                      .lineLimit(1)
-                      .truncationMode(.middle)
-                      .textSelection(.enabled)
+                    if isPrivate {
+                      Text(Constants.privacyText(length: 8))
+                        .font(.hbMono(11))
+                        .foregroundStyle(Color.hbTextPrimary)
+                        .lineLimit(1)
+                    } else {
+                      Text(output.address)
+                        .font(.hbMono(11))
+                        .foregroundStyle(Color.hbTextPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                    }
                   }
                   Spacer()
-                  Text(output.amount.formattedSats)
+                  Text(isPrivate ? Constants.privacyText() : output.amount.formattedSats)
                     .font(.hbMono(12))
                     .foregroundStyle(Color.hbTextPrimary)
                 }
@@ -349,14 +377,18 @@ struct TransactionDetailView: View {
 
     // Propagate to related UTXOs and receive address if this is an incoming tx
     if !trimmed.isEmpty {
-      LabelService.propagateFromTxLabel(
-        txid: transaction.id,
-        newLabel: trimmed,
-        transaction: transaction,
-        utxos: BitcoinService.shared.utxos,
-        context: modelContext,
-        walletID: walletID
-      )
+      do {
+        try LabelService.propagateFromTxLabel(
+          txid: transaction.id,
+          newLabel: trimmed,
+          transaction: transaction,
+          utxos: BitcoinService.shared.utxos,
+          context: modelContext,
+          walletID: walletID
+        )
+      } catch {
+        logger.error("Failed to propagate tx label: \(error.localizedDescription)")
+      }
     }
   }
 }
@@ -365,6 +397,7 @@ struct TransactionDetailView: View {
 
 private struct TransactionDetailFlowDiagram: View {
   let transaction: TransactionItem
+  var isPrivate: Bool = false
 
   private struct FlowEntry: Identifiable {
     let id = UUID()
@@ -379,7 +412,7 @@ private struct TransactionDetailFlowDiagram: View {
   }
 
   private var inputEntries: [FlowEntry] {
-    transaction.inputs.map { FlowEntry(label: shortAddress($0.address), isMine: $0.isMine, isPlaceholder: false) }
+    transaction.inputs.map { FlowEntry(label: isPrivate ? Constants.privacyText(length: 4) : shortAddress($0.address), isMine: $0.isMine, isPlaceholder: false) }
   }
 
   private var walletAddressMaps: (change: [String: UInt32], receive: [String: UInt32]) {
@@ -400,7 +433,7 @@ private struct TransactionDetailFlowDiagram: View {
       if output.isMine, let index = maps.receive[output.address] {
         return FlowEntry(label: "Receive #\(index)", isMine: true, isPlaceholder: false)
       }
-      return FlowEntry(label: shortAddress(output.address), isMine: output.isMine, isPlaceholder: false)
+      return FlowEntry(label: isPrivate ? Constants.privacyText(length: 4) : shortAddress(output.address), isMine: output.isMine, isPlaceholder: false)
     }
     if let fee = transaction.fee, fee > 0 {
       let feeMine = !transaction.isIncoming

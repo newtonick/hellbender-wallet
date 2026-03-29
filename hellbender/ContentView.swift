@@ -1,28 +1,34 @@
 import LocalAuthentication
+import OSLog
 import SwiftData
 import SwiftUI
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "AppLifecycle")
 
 struct ContentView: View {
   @Query private var wallets: [WalletProfile]
   @AppStorage(Constants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
   @AppStorage(Constants.appLockEnabledKey) private var appLockEnabled = false
+  @AppStorage(Constants.appLockTimeoutKey) private var lockTimeout = 60
   @Environment(\.scenePhase) private var scenePhase
-  @State private var isLocked = true
-  @State private var isAuthenticating = false
-  @State private var backgroundTime: Date?
+  @Environment(\.modelContext) private var modelContext
+  @State private var lockVM = AppLockViewModel()
 
   private var hasActiveWallet: Bool {
     wallets.contains { $0.isActive }
   }
 
   private var shouldShowLock: Bool {
-    appLockEnabled && isLocked
+    appLockEnabled && lockVM.isLocked
   }
 
   var body: some View {
     ZStack {
       Group {
-        if hasCompletedOnboarding, hasActiveWallet {
+        if shouldShowLock {
+          // Don't render main UI while locked — prevents wallet load/sync
+          Color.hbBackground.ignoresSafeArea()
+        } else if hasCompletedOnboarding, hasActiveWallet {
           MainTabView()
         } else {
           SetupWizardView()
@@ -31,52 +37,44 @@ struct ContentView: View {
       .background(Color.hbBackground)
 
       if shouldShowLock {
-        AppLockView(isAuthenticating: $isAuthenticating, onAuthenticate: authenticate)
+        AppLockView(lockVM: lockVM, modelContext: modelContext)
       }
     }
     .onAppear {
+      // If wallets exist but none are active (e.g. after a failed delete),
+      // activate the first one so the app doesn't fall through to the setup wizard.
+      if !wallets.isEmpty, !hasActiveWallet {
+        logger.info("No active wallet found — activating first available wallet")
+        let first = wallets[0]
+        first.isActive = true
+        UserDefaults.standard.set(first.id.uuidString, forKey: Constants.activeWalletIDKey)
+        try? modelContext.save()
+      }
       if appLockEnabled {
-        authenticate()
+        logger.info("App launched with lock enabled")
+        lockVM.authenticate()
       } else {
-        isLocked = false
+        logger.info("App launched (lock disabled)")
+        lockVM.isLocked = false
       }
     }
     .onChange(of: scenePhase) { _, newPhase in
-      if appLockEnabled {
-        if newPhase == .background {
-          if backgroundTime == nil {
-            backgroundTime = Date()
-          }
-        } else if newPhase == .active {
-          if let bgTime = backgroundTime, Date().timeIntervalSince(bgTime) >= 60 {
-            isLocked = true
-            authenticate()
-          }
-          backgroundTime = nil
+      switch newPhase {
+      case .background:
+        logger.info("Scene phase: background")
+        if appLockEnabled {
+          BitcoinService.shared.stopAutoSync()
+          lockVM.handleBackground()
         }
-      }
-    }
-  }
-
-  private func authenticate() {
-    guard !isAuthenticating else { return }
-    isAuthenticating = true
-
-    let context = LAContext()
-    var error: NSError?
-    guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-      // If authentication is unavailable, let the user in
-      isLocked = false
-      isAuthenticating = false
-      return
-    }
-
-    context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock \(Constants.appName)") { success, _ in
-      DispatchQueue.main.async {
-        if success {
-          isLocked = false
+      case .active:
+        logger.info("Scene phase: active")
+        if appLockEnabled {
+          lockVM.handleForeground(timeout: lockTimeout)
         }
-        isAuthenticating = false
+      case .inactive:
+        logger.info("Scene phase: inactive")
+      @unknown default:
+        break
       }
     }
   }
@@ -85,8 +83,9 @@ struct ContentView: View {
 // MARK: - Lock Screen
 
 private struct AppLockView: View {
-  @Binding var isAuthenticating: Bool
-  let onAuthenticate: () -> Void
+  @Bindable var lockVM: AppLockViewModel
+  let modelContext: ModelContext
+  @State private var lockoutTimer: Timer?
 
   private var biometricIcon: String {
     let context = LAContext()
@@ -104,30 +103,97 @@ private struct AppLockView: View {
       Color.hbBackground
         .ignoresSafeArea()
 
-      VStack(spacing: 24) {
-        Spacer()
+      if lockVM.needsPINEntry {
+        pinEntryView
+      } else {
+        biometricView
+      }
+    }
+    .onAppear {
+      startLockoutTimerIfNeeded()
+    }
+    .onDisappear {
+      lockoutTimer?.invalidate()
+    }
+  }
 
-        Image(systemName: biometricIcon)
-          .font(.system(size: 56))
-          .foregroundStyle(Color.hbBitcoinOrange)
+  private var biometricView: some View {
+    VStack(spacing: 24) {
+      Spacer()
 
-        Text(Constants.appName)
-          .font(.hbDisplay(28))
-          .foregroundStyle(Color.hbTextPrimary)
+      Image(systemName: biometricIcon)
+        .font(.system(size: 56))
+        .foregroundStyle(Color.hbBitcoinOrange)
 
-        Text("Locked")
-          .font(.hbBody())
-          .foregroundStyle(Color.hbTextSecondary)
+      Text(Constants.appName)
+        .font(.hbDisplay(28))
+        .foregroundStyle(Color.hbTextPrimary)
 
-        Spacer()
+      Text("Locked")
+        .font(.hbBody())
+        .foregroundStyle(Color.hbTextSecondary)
 
-        Button(action: onAuthenticate) {
-          Text("Unlock")
-            .hbPrimaryButton()
+      Spacer()
+
+      Button(action: { lockVM.authenticate() }) {
+        Text("Unlock")
+          .hbPrimaryButton()
+      }
+      .disabled(lockVM.isAuthenticating)
+      .padding(.horizontal, 24)
+      .padding(.bottom, 48)
+    }
+  }
+
+  private var pinEntryView: some View {
+    VStack(spacing: 0) {
+      Spacer()
+
+      PINPadView(
+        title: "Enter PIN",
+        subtitle: lockVM.pinError,
+        dotCount: lockVM.storedPINLength,
+        minDigits: lockVM.storedPINLength,
+        mode: .verify,
+        pin: $lockVM.pinInput,
+        isDisabled: lockVM.isLockedOut,
+        onComplete: { pin in
+          let success = lockVM.verifyPIN(pin)
+          if !success {
+            if lockVM.failedAttempts >= 10 {
+              lockVM.wipeAllData(modelContext: modelContext)
+            }
+            startLockoutTimerIfNeeded()
+          }
+        },
+        onFaceIDTap: {
+          lockVM.needsPINEntry = false
+          lockVM.pinInput = ""
+          lockVM.pinError = ""
+          lockVM.authenticate()
         }
-        .disabled(isAuthenticating)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 48)
+      )
+
+      Spacer()
+    }
+    .padding(.horizontal, 16)
+  }
+
+  private func startLockoutTimerIfNeeded() {
+    guard lockVM.isLockedOut else { return }
+    lockoutTimer?.invalidate()
+    lockoutTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak lockVM] timer in
+      MainActor.assumeIsolated {
+        guard let lockVM else {
+          timer.invalidate()
+          return
+        }
+        if !lockVM.isLockedOut {
+          timer.invalidate()
+          lockVM.pinError = ""
+        } else {
+          lockVM.pinError = lockVM.lockoutRemainingText
+        }
       }
     }
   }

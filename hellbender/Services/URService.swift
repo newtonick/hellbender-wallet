@@ -720,6 +720,17 @@ enum URService {
     return .hdKey(xpub: xpub, fingerprint: fingerprint, derivationPath: derivationPath)
   }
 
+  /// Try to extract a wallet descriptor from a JSON string (e.g. Specter Desktop export).
+  /// Returns the descriptor string if found, nil otherwise.
+  static func extractDescriptorFromJSON(_ text: String) -> String? {
+    guard let data = text.data(using: .utf8),
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let descriptor = json["descriptor"] as? String,
+          !descriptor.isEmpty
+    else { return nil }
+    return descriptor
+  }
+
   static func processUR(_ ur: UR) -> AppURResult {
     switch ur.type {
     case "crypto-psbt":

@@ -91,6 +91,17 @@ struct ConnectionStatusView: View {
         InfoRow(label: "Chain tip", value: "\(service.chainTipHeight)")
       }
 
+      if let error = service.electrumConnectionError, !service.isElectrumConnected {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Connection Error")
+            .font(.hbLabel())
+            .foregroundStyle(Color.hbError)
+          Text(error)
+            .font(.hbBody(13))
+            .foregroundStyle(Color.hbTextPrimary)
+        }
+      }
+
       if let result = testResult {
         Text(result)
           .font(.hbBody(13))
@@ -331,10 +342,10 @@ struct ConnectionStatusView: View {
     Task {
       let config = wallet.electrumConfig
       do {
-        try await service.testElectrumConnection(config: config)
-        testResult = "Success — server responded to ping"
+        let height = try await service.testElectrumConnection(config: config)
+        testResult = "Success — chain tip at block \(height)"
       } catch {
-        testResult = "Failed: \(error.localizedDescription)"
+        testResult = "Failed: \(BitcoinService.friendlyElectrumError(error))"
       }
       isTesting = false
     }

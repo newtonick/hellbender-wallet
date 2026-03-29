@@ -1,5 +1,8 @@
+import OSLog
 import SwiftData
 import SwiftUI
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "UTXODetail")
 
 struct UTXODetailView: View {
   let utxo: UTXOItem
@@ -12,6 +15,10 @@ struct UTXODetailView: View {
   @State private var utxoLabel: String = ""
   @State private var isEditingLabel = false
   @State private var editedLabel: String = ""
+
+  private var isPrivate: Bool {
+    BitcoinService.shared.currentProfile?.privacyMode ?? false
+  }
 
   private var service: BitcoinService {
     BitcoinService.shared
@@ -41,7 +48,11 @@ struct UTXODetailView: View {
             .font(.system(size: 44))
             .foregroundStyle(isFrozen ? Color.hbSteelBlue : Color.hbBitcoinOrange)
 
-          if fiatEnabled, fiatPrimary, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(utxo.amount) {
+          if isPrivate {
+            Text(Constants.privacyText())
+              .font(.hbAmountMedium)
+              .foregroundStyle(Color.hbTextPrimary)
+          } else if fiatEnabled, fiatPrimary, let fiatStr = FiatPriceService.shared.formattedSatsToFiat(utxo.amount) {
             Text(fiatStr)
               .font(.hbAmountMedium)
               .foregroundStyle(Color.hbTextPrimary)
@@ -93,28 +104,38 @@ struct UTXODetailView: View {
                 .foregroundStyle(Color.hbTextSecondary)
 
               HStack(alignment: .top, spacing: 8) {
-                Text(address)
-                  .font(.hbMono(12))
-                  .foregroundStyle(Color.hbTextPrimary)
-                  .textSelection(.enabled)
+                Group {
+                  if isPrivate {
+                    Text(Constants.privacyText(length: 8))
+                      .font(.hbMono(12))
+                      .foregroundStyle(Color.hbTextPrimary)
+                  } else {
+                    Text(address)
+                      .font(.hbMono(12))
+                      .foregroundStyle(Color.hbTextPrimary)
+                      .textSelection(.enabled)
+                  }
+                }
 
                 Spacer()
 
-                Button(action: {
-                  UIPasteboard.general.string = address
-                }) {
-                  Image(systemName: "doc.on.doc")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color.hbSteelBlue)
-                }
-
-                if let network = service.currentNetwork,
-                   let url = network.explorerAddressURL(address: address, customHost: service.currentProfile?.blockExplorerHost)
-                {
-                  Link(destination: url) {
-                    Image(systemName: "arrow.up.right.square")
+                if !isPrivate {
+                  Button(action: {
+                    UIPasteboard.general.string = address
+                  }) {
+                    Image(systemName: "doc.on.doc")
                       .font(.system(size: 14))
                       .foregroundStyle(Color.hbSteelBlue)
+                  }
+
+                  if let network = service.currentNetwork,
+                     let url = network.explorerAddressURL(address: address, customHost: service.currentProfile?.blockExplorerHost)
+                  {
+                    Link(destination: url) {
+                      Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.hbSteelBlue)
+                    }
                   }
                 }
               }
@@ -133,7 +154,7 @@ struct UTXODetailView: View {
             Divider().overlay(Color.hbBorder)
           }
 
-          DetailRow(label: "Amount", value: utxo.amount.formattedSats)
+          DetailRow(label: "Amount", value: isPrivate ? Constants.privacyText() : utxo.amount.formattedSats)
 
           DetailRow(label: "Output Index", value: "\(utxo.vout)")
 
@@ -207,28 +228,38 @@ struct UTXODetailView: View {
             .foregroundStyle(Color.hbTextSecondary)
 
           HStack(alignment: .top, spacing: 8) {
-            Text(utxo.id)
-              .font(.hbMono(11))
-              .foregroundStyle(Color.hbTextPrimary)
-              .textSelection(.enabled)
+            Group {
+              if isPrivate {
+                Text(Constants.privacyText(length: 8))
+                  .font(.hbMono(11))
+                  .foregroundStyle(Color.hbTextPrimary)
+              } else {
+                Text(utxo.id)
+                  .font(.hbMono(11))
+                  .foregroundStyle(Color.hbTextPrimary)
+                  .textSelection(.enabled)
+              }
+            }
 
             Spacer()
 
-            Button(action: {
-              UIPasteboard.general.string = utxo.id
-            }) {
-              Image(systemName: "doc.on.doc")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.hbSteelBlue)
-            }
-
-            if let network = service.currentNetwork,
-               let url = network.explorerTxURL(txid: utxo.txid, customHost: service.currentProfile?.blockExplorerHost)
-            {
-              Link(destination: url) {
-                Image(systemName: "arrow.up.right.square")
+            if !isPrivate {
+              Button(action: {
+                UIPasteboard.general.string = utxo.id
+              }) {
+                Image(systemName: "doc.on.doc")
                   .font(.system(size: 14))
                   .foregroundStyle(Color.hbSteelBlue)
+              }
+
+              if let network = service.currentNetwork,
+                 let url = network.explorerTxURL(txid: utxo.txid, customHost: service.currentProfile?.blockExplorerHost)
+              {
+                Link(destination: url) {
+                  Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.hbSteelBlue)
+                }
               }
             }
           }
@@ -284,10 +315,6 @@ struct UTXODetailView: View {
     } else {
       modelContext.insert(WalletLabel(walletID: walletID, type: .utxo, ref: outpoint, label: trimmed))
     }
-    try? modelContext.save()
-    utxoLabel = trimmed
-    isEditingLabel = false
-
     // Propagate to receive address if unlabeled
     if !trimmed.isEmpty, utxo.keychain == .external, let address = outputAddress {
       let addrType = "addr"
@@ -296,9 +323,15 @@ struct UTXODetailView: View {
       })
       if (try? modelContext.fetch(addrDescriptor))?.first == nil {
         modelContext.insert(WalletLabel(walletID: walletID, type: .addr, ref: address, label: trimmed))
-        try? modelContext.save()
       }
     }
+    do {
+      try modelContext.save()
+    } catch {
+      logger.error("Failed to save UTXO label: \(error)")
+    }
+    utxoLabel = trimmed
+    isEditingLabel = false
   }
 
   private func addressLabel(for address: String) -> String? {
@@ -316,11 +349,14 @@ struct UTXODetailView: View {
       let outpoint = utxo.id
       if let frozen = (try? modelContext.fetch(descriptor))?.first(where: { $0.outpoint == outpoint }) {
         modelContext.delete(frozen)
-        try? modelContext.save()
       }
     } else {
       modelContext.insert(FrozenUTXO(walletID: walletID, txid: utxo.txid, vout: utxo.vout))
-      try? modelContext.save()
+    }
+    do {
+      try modelContext.save()
+    } catch {
+      logger.error("Failed to save UTXO freeze toggle: \(error)")
     }
   }
 }

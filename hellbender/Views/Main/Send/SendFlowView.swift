@@ -4,11 +4,14 @@ import UniformTypeIdentifiers
 
 struct SendFlowView: View {
   @Binding var selectedTab: Int
-  @Binding var resumePSBT: SavedPSBT?
   @State private var viewModel = SendViewModel()
   @Query private var frozenUTXOs: [FrozenUTXO]
+  @Query(sort: \SavedPSBT.updatedAt, order: .reverse) private var allSavedPSBTs: [SavedPSBT]
   @Environment(\.modelContext) private var modelContext
   @State private var bumpFeeViewModel: BumpFeeViewModel?
+  @State private var resumeCandidate: SavedPSBT?
+  @State private var hasCheckedResume = false
+  @State private var resumeDismissed = false
   var body: some View {
     NavigationStack {
       ZStack {
@@ -47,7 +50,12 @@ struct SendFlowView: View {
           Group {
             switch viewModel.currentStep {
             case .recipients:
-              SendRecipientsView(viewModel: viewModel)
+              SendRecipientsView(
+                viewModel: viewModel,
+                resumeCandidate: resumeCandidate,
+                onResumeYes: { saved in resumePSBT(saved) },
+                onResumeNo: { dismissResume() }
+              )
             case .review:
               SendReviewView(viewModel: viewModel)
             case .psbtDisplay:
@@ -73,10 +81,7 @@ struct SendFlowView: View {
     .onAppear {
       loadFrozenOutpoints()
       viewModel.loadBalance()
-      if let saved = resumePSBT {
-        viewModel.loadSavedPSBT(saved)
-        resumePSBT = nil
-      }
+      checkForResumablePSBT()
     }
     .onChange(of: frozenUTXOs.count) {
       loadFrozenOutpoints()
@@ -86,12 +91,10 @@ struct SendFlowView: View {
       viewModel.reset()
       loadFrozenOutpoints()
       viewModel.loadBalance()
-    }
-    .onChange(of: resumePSBT) { _, saved in
-      if let saved {
-        viewModel.loadSavedPSBT(saved)
-        resumePSBT = nil
-      }
+      resumeCandidate = nil
+      hasCheckedResume = false
+      resumeDismissed = false
+      checkForResumablePSBT()
     }
     .sheet(isPresented: $viewModel.showLoadPSBT) {
       SavedPSBTListView(viewModel: viewModel) { savedPSBT in
@@ -133,6 +136,30 @@ struct SendFlowView: View {
     guard let walletID = BitcoinService.shared.currentProfile?.id else { return }
     viewModel.frozenOutpoints = Set(frozenUTXOs.filter { $0.walletID == walletID }.map(\.outpoint))
   }
+
+  private func checkForResumablePSBT() {
+    guard !hasCheckedResume, !resumeDismissed else { return }
+    guard let walletID = BitcoinService.shared.currentProfile?.id else { return }
+    hasCheckedResume = true
+
+    if let saved = allSavedPSBTs.first(where: { $0.walletID == walletID }) {
+      resumeCandidate = saved
+    }
+  }
+
+  func resumePSBT(_ saved: SavedPSBT) {
+    resumeCandidate = nil
+    if saved.originalTxid != nil {
+      bumpFeeViewModel = BumpFeeViewModel(savedPSBT: saved)
+    } else {
+      viewModel.loadSavedPSBT(saved)
+    }
+  }
+
+  func dismissResume() {
+    resumeCandidate = nil
+    resumeDismissed = true
+  }
 }
 
 // MARK: - Import PSBT via QR Sheet
@@ -144,7 +171,7 @@ struct ImportPSBTQRSheet: View {
 
   var body: some View {
     NavigationStack {
-      URScannerSheet { result in
+      URScannerSheet(preferMacroCamera: true) { result in
         switch result {
         case let .psbt(data):
           viewModel.importPSBT(data, source: "QR", context: modelContext)

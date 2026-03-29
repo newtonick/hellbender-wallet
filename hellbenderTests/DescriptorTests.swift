@@ -2,6 +2,7 @@ import Foundation
 @testable import hellbender
 import Testing
 
+@MainActor
 struct DescriptorTests {
   // MARK: - Descriptor Construction
 

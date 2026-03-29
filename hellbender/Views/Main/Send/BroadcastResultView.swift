@@ -1,3 +1,4 @@
+import OSLog
 import SwiftData
 import SwiftUI
 
@@ -6,19 +7,40 @@ struct BroadcastResultView: View {
   @Binding var selectedTab: Int
   @Environment(\.modelContext) private var modelContext
 
+  @State private var showSuccess = false
+  @State private var checkmarkScale: CGFloat = 0
+  @State private var ringScale: CGFloat = 0
+  @State private var ringOpacity: Double = 1
+  @State private var textOpacity: Double = 0
+  @State private var txidOpacity: Double = 0
+  @State private var countdownSeconds = 5
+  @State private var countdownTimer: Timer?
+
   var body: some View {
     VStack(spacing: 24) {
       Spacer()
 
-      if !viewModel.broadcastTxid.isEmpty {
-        // Success state
-        Image(systemName: "checkmark.circle.fill")
-          .font(.system(size: 64))
-          .foregroundStyle(Color.hbSuccess)
+      if showSuccess {
+        // Animated success state
+        ZStack {
+          // Expanding ring
+          Circle()
+            .strokeBorder(Color.hbSuccess, lineWidth: 3)
+            .frame(width: 120, height: 120)
+            .scaleEffect(ringScale)
+            .opacity(ringOpacity)
 
-        Text("Transaction Broadcast")
+          // Checkmark
+          Image(systemName: "checkmark.circle.fill")
+            .font(.system(size: 72))
+            .foregroundStyle(Color.hbSuccess)
+            .scaleEffect(checkmarkScale)
+        }
+
+        Text("Transaction Broadcast!")
           .font(.hbDisplay(24))
           .foregroundStyle(Color.hbTextPrimary)
+          .opacity(textOpacity)
 
         VStack(spacing: 8) {
           Text("Transaction ID")
@@ -39,7 +61,8 @@ struct BroadcastResultView: View {
               .foregroundStyle(Color.hbSteelBlue)
           }
         }
-      } else {
+        .opacity(txidOpacity)
+      } else if viewModel.broadcastTxid.isEmpty {
         // Ready to broadcast
         SignatureProgressView(
           collected: viewModel.signaturesCollected,
@@ -62,7 +85,16 @@ struct BroadcastResultView: View {
 
       Spacer()
 
-      if viewModel.broadcastTxid.isEmpty {
+      if showSuccess {
+        Button(action: {
+          navigateToTransactions()
+        }) {
+          Text("View Transactions (\(countdownSeconds))")
+            .hbPrimaryButton()
+        }
+        .padding(.horizontal, 24)
+        .opacity(txidOpacity)
+      } else if viewModel.broadcastTxid.isEmpty {
         Button(action: {
           Task { await viewModel.broadcast() }
         }) {
@@ -83,18 +115,9 @@ struct BroadcastResultView: View {
             .font(.hbBody(15))
             .foregroundStyle(Color.hbBitcoinOrange)
         }
-      } else {
-        Button(action: {
-          viewModel.reset()
-          selectedTab = 0
-        }) {
-          Text("Done")
-            .hbPrimaryButton()
-        }
-        .padding(.horizontal, 24)
       }
 
-      if viewModel.broadcastTxid.isEmpty {
+      if viewModel.broadcastTxid.isEmpty, !showSuccess {
         Button(action: {
           viewModel.currentStep = .recipients
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -116,10 +139,58 @@ struct BroadcastResultView: View {
       if !viewModel.broadcastTxid.isEmpty {
         saveRecipientLabels()
         viewModel.deleteSavedPSBT(context: modelContext)
+        playCelebration()
       }
+    }
+    .onDisappear {
+      countdownTimer?.invalidate()
     }
     .sheet(isPresented: $viewModel.showExportQR) {
       ExportTransactionSheet(txBytes: viewModel.finalizedTxBytes)
+    }
+  }
+
+  private func playCelebration() {
+    // Staggered animation sequence
+    withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+      showSuccess = true
+      checkmarkScale = 1.0
+    }
+
+    withAnimation(.easeOut(duration: 0.6)) {
+      ringScale = 2.0
+    }
+    withAnimation(.easeOut(duration: 0.6).delay(0.3)) {
+      ringOpacity = 0
+    }
+
+    withAnimation(.easeIn(duration: 0.3).delay(0.25)) {
+      textOpacity = 1
+    }
+    withAnimation(.easeIn(duration: 0.3).delay(0.5)) {
+      txidOpacity = 1
+    }
+
+    // Auto-navigate countdown
+    countdownSeconds = 5
+    countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+      Task { @MainActor in
+        countdownSeconds -= 1
+        if countdownSeconds <= 0 {
+          timer.invalidate()
+          navigateToTransactions()
+        }
+      }
+    }
+  }
+
+  private func navigateToTransactions() {
+    countdownTimer?.invalidate()
+    viewModel.reset()
+    selectedTab = 0
+    // Sync after navigation so the new transaction appears in the list
+    Task {
+      try? await BitcoinService.shared.sync()
     }
   }
 
@@ -162,14 +233,19 @@ struct BroadcastResultView: View {
       if let changeAddress = viewModel.changeAddress, !changeAddress.isEmpty,
          let changeVout = BitcoinService.shared.psbtChangeVout(viewModel.psbtBytes, changeAddress: changeAddress)
       {
-        LabelService.propagateChangeLabel(
-          txid: txid,
-          txLabel: txLabel,
-          changeAddress: changeAddress,
-          changeVout: changeVout,
-          context: modelContext,
-          walletID: walletID
-        )
+        do {
+          try LabelService.propagateChangeLabel(
+            txid: txid,
+            txLabel: txLabel,
+            changeAddress: changeAddress,
+            changeVout: changeVout,
+            context: modelContext,
+            walletID: walletID
+          )
+        } catch {
+          Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbender", category: "LabelService")
+            .error("Failed to propagate change label: \(error.localizedDescription)")
+        }
       }
     }
     try? modelContext.save()

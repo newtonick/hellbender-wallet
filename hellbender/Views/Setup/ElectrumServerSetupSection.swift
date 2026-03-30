@@ -2,6 +2,15 @@ import SwiftUI
 
 struct ElectrumServerSetupSection: View {
   @Bindable var viewModel: SetupWizardViewModel
+  @State private var showInsecureSSLAlert = false
+
+  private var isSSLSelected: Bool {
+    switch viewModel.electrumSSL {
+    case 1: false
+    case 2: true
+    default: viewModel.network.usesSSL
+    }
+  }
 
   var body: some View {
     VStack(spacing: 12) {
@@ -50,13 +59,36 @@ struct ElectrumServerSetupSection: View {
               default: viewModel.network.usesSSL ? 2 : 1
               }
             },
-            set: { viewModel.electrumSSL = $0 }
+            set: {
+              viewModel.electrumSSL = $0
+              if $0 != 2 {
+                viewModel.electrumAllowInsecureSSL = false
+              }
+            }
           )) {
             Text("TCP").tag(1)
             Text("SSL").tag(2)
           }
           .pickerStyle(.segmented)
         }
+      }
+
+      if isSSLSelected {
+        Toggle(isOn: Binding(
+          get: { viewModel.electrumAllowInsecureSSL },
+          set: { newValue in
+            if newValue {
+              showInsecureSSLAlert = true
+            } else {
+              viewModel.electrumAllowInsecureSSL = false
+            }
+          }
+        )) {
+          Text("Allow insecure SSL")
+            .font(.hbBody(13))
+            .foregroundStyle(Color.hbTextPrimary)
+        }
+        .tint(Color.hbBitcoinOrange)
       }
 
       if viewModel.network.defaultElectrumHost != nil {
@@ -70,6 +102,14 @@ struct ElectrumServerSetupSection: View {
       }
     }
     .hbCard()
+    .alert("Allow Insecure SSL?", isPresented: $showInsecureSSLAlert) {
+      Button("Cancel", role: .cancel) {}
+      Button("Allow", role: .destructive) {
+        viewModel.electrumAllowInsecureSSL = true
+      }
+    } message: {
+      Text("This removes the requirement to verify that the server is who it claims to be. The connection will still be encrypted, but self-signed, expired, or invalid certificates will be accepted.")
+    }
   }
 }
 

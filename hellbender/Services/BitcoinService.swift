@@ -264,7 +264,8 @@ final class BitcoinService {
     addToLog("Connecting to Electrum: \(config.url)")
     do {
       let url = config.url
-      electrumClient = try await Task.detached { try ElectrumClient(url: url) }.value
+      let validateDomain = !config.allowInsecureSSL
+      electrumClient = try await Task.detached { try ElectrumClient(url: url, validateDomain: validateDomain) }.value
       electrumConnectionError = nil
       addToLog("Electrum client initialized")
     } catch {
@@ -301,7 +302,8 @@ final class BitcoinService {
         let config = profile.electrumConfig
         addToLog("Re-initializing Electrum client: \(config.url)")
         let reconnectURL = config.url
-        electrumClient = try await Task.detached { try ElectrumClient(url: reconnectURL) }.value
+        let validateDomain = !config.allowInsecureSSL
+        electrumClient = try await Task.detached { try ElectrumClient(url: reconnectURL, validateDomain: validateDomain) }.value
         electrumConnectionError = nil
       }
 
@@ -453,13 +455,14 @@ final class BitcoinService {
   @discardableResult
   func testElectrumConnection(config: ElectrumConfig) async throws -> UInt32 {
     // Pre-check SSL certificate before handing off to BDK
-    if config.useSSL {
+    if config.useSSL, !config.allowInsecureSSL {
       try await Self.validateTLSCertificate(host: config.host, port: config.port)
     }
 
     let url = config.url
+    let validateDomain = !config.allowInsecureSSL
     let header = try await Task.detached {
-      let client = try ElectrumClient(url: url)
+      let client = try ElectrumClient(url: url, validateDomain: validateDomain)
       return try client.blockHeadersSubscribe()
     }.value
     return UInt32(header.height)

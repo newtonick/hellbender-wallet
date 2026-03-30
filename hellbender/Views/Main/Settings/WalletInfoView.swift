@@ -23,6 +23,7 @@ struct WalletInfoView: View {
   @State private var connectionTestResult: String?
   @State private var blockExplorerText: String = ""
   @State private var initialElectrumConfig: ElectrumConfig?
+  @State private var showInsecureSSLAlert = false
   @State private var showDescriptorQR = false
   @State private var showDeleteConfirmation = false
   @State private var showDescriptorPDF = false
@@ -200,12 +201,35 @@ struct WalletInfoView: View {
                 default: wallet.bitcoinNetwork.usesSSL ? 2 : 1
                 }
               },
-              set: { wallet.electrumSSL = $0 }
+              set: {
+                wallet.electrumSSL = $0
+                if $0 != 2 {
+                  wallet.electrumAllowInsecureSSL = false
+                }
+              }
             )) {
               Text("TCP").tag(1)
               Text("SSL").tag(2)
             }
             .pickerStyle(.segmented)
+          }
+
+          if wallet.electrumSSL == 2 || (wallet.electrumSSL == 0 && wallet.bitcoinNetwork.usesSSL) {
+            Toggle(isOn: Binding(
+              get: { wallet.electrumAllowInsecureSSL },
+              set: { newValue in
+                if newValue {
+                  showInsecureSSLAlert = true
+                } else {
+                  wallet.electrumAllowInsecureSSL = false
+                }
+              }
+            )) {
+              Text("Allow insecure SSL")
+                .font(.hbBody(13))
+                .foregroundStyle(Color.hbTextPrimary)
+            }
+            .tint(Color.hbBitcoinOrange)
           }
 
           if let result = connectionTestResult {
@@ -426,6 +450,14 @@ struct WalletInfoView: View {
         }
       }
     }
+    .alert("Allow Insecure SSL?", isPresented: $showInsecureSSLAlert) {
+      Button("Cancel", role: .cancel) {}
+      Button("Allow", role: .destructive) {
+        wallet.electrumAllowInsecureSSL = true
+      }
+    } message: {
+      Text("This removes the requirement to verify that the server is who it claims to be. The connection will still be encrypted, but self-signed, expired, or invalid certificates will be accepted.")
+    }
     .sheet(isPresented: $showEditCosigners) {
       EditCosignersView(wallet: wallet)
     }
@@ -460,6 +492,7 @@ struct WalletInfoView: View {
     wallet.electrumHost = ""
     wallet.electrumPort = 0
     wallet.electrumSSL = 0
+    wallet.electrumAllowInsecureSSL = false
     electrumHostText = ""
     electrumPortText = ""
     connectionTestResult = nil

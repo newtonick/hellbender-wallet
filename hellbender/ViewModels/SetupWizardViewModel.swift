@@ -50,6 +50,7 @@ final class SetupWizardViewModel {
   var electrumHost: String = ""
   var electrumPort: String = ""
   var electrumSSL: Int = 0 // 0 = network default, 1 = TCP, 2 = SSL
+  var electrumAllowInsecureSSL: Bool = false
 
   /// Returns an error message if the descriptor contains keys that don't match the selected network, nil otherwise.
   var descriptorNetworkMismatchError: String? {
@@ -449,6 +450,7 @@ final class SetupWizardViewModel {
       electrumHost: electrumHost.trimmingCharacters(in: .whitespaces),
       electrumPort: Int(electrumPort) ?? 0,
       electrumSSL: electrumSSL,
+      electrumAllowInsecureSSL: electrumAllowInsecureSSL,
       blockExplorerHost: blockExplorerHost.trimmingCharacters(in: .whitespaces)
     )
 

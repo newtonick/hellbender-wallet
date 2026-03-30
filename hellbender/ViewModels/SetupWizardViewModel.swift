@@ -408,7 +408,7 @@ final class SetupWizardViewModel {
       if creationMode == .createNew {
         currentStep = .cosignerImport
       }
-      // Import flow: back button is hidden, wallet already created
+    // Import flow: back button is hidden, wallet already created
     case .review: currentStep = .walletName
     }
   }

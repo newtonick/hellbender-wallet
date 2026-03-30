@@ -256,6 +256,9 @@ final class BitcoinService {
     requiredSignatures = profile.requiredSignatures
     totalCosigners = profile.totalCosigners
 
+    // Restore last-known chain tip so cached confirmations are reasonable (not 1)
+    chainTipHeight = UInt32(UserDefaults.standard.integer(forKey: "chainTipHeight_\(profile.id.uuidString)"))
+
     // Load cached data from persisted wallet first (works offline)
     updateCachedData()
 
@@ -323,6 +326,9 @@ final class BitcoinService {
           return
         }
         chainTipHeight = UInt32(header.height)
+        if let profileId = syncProfileId {
+          UserDefaults.standard.set(Int(chainTipHeight), forKey: "chainTipHeight_\(profileId.uuidString)")
+        }
         electrumVerified = true
         electrumConnectionError = nil
         addToLog("Chain tip height: \(chainTipHeight)")

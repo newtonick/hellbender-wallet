@@ -316,6 +316,18 @@ final class BitcoinService {
       try await Task.detached { try client.ping() }.value
       addToLog("Server ping OK")
 
+      // Fetch chain tip early to confirm server returns real data
+      if let header = await Task.detached(operation: { [client] in try? client.blockHeadersSubscribe() }).value {
+        guard currentProfile?.id == syncProfileId else {
+          addToLog("Sync cancelled: wallet switched during chain tip fetch")
+          return
+        }
+        chainTipHeight = UInt32(header.height)
+        electrumVerified = true
+        electrumConnectionError = nil
+        addToLog("Chain tip height: \(chainTipHeight)")
+      }
+
       if needsFullScan {
         let gapLimit = currentProfile?.addressGapLimit ?? Constants.maxAddressGap
         addToLog("Starting full scan (gapLimit: \(gapLimit))")
@@ -405,17 +417,6 @@ final class BitcoinService {
         _ = try wallet.persist(persister: syncPersister)
       }
 
-      // Update chain tip height for confirmation count calculation
-      addToLog("Fetching chain tip height")
-      if let header = await Task.detached(operation: { [client] in try? client.blockHeadersSubscribe() }).value {
-        guard currentProfile?.id == syncProfileId else {
-          addToLog("Sync cancelled: wallet switched during chain tip fetch")
-          return
-        }
-        chainTipHeight = UInt32(header.height)
-        addToLog("Chain tip height: \(chainTipHeight)")
-      }
-
       // Verify wallet identity one more time after final await
       guard currentProfile?.id == syncProfileId else {
         addToLog("Sync completed but wallet switched — discarding results")
@@ -427,8 +428,6 @@ final class BitcoinService {
 
       let now = Date()
       lastSyncDate = now
-      electrumVerified = true
-      electrumConnectionError = nil
       setSyncState(.synced(now), for: syncProfileId)
       addToLog("Sync completed successfully")
     } catch {

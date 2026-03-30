@@ -32,9 +32,9 @@ struct ConnectionStatusView: View {
       .navigationTitle("Connection Status")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
+        ToolbarItem(placement: .confirmationAction) {
           Button("Done") { dismiss() }
-            .foregroundStyle(Color.hbTextSecondary)
+            .foregroundStyle(Color.hbBitcoinOrange)
         }
       }
     }

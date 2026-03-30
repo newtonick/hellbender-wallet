@@ -67,7 +67,7 @@ final class hellbenderUITests: XCTestCase {
     XCTAssertTrue(nameTitle.waitForExistence(timeout: 3), "Wallet name screen should appear")
 
     // Type a wallet name into the text field
-    let nameField = app.textFields["My Multisig Wallet"]
+    let nameField = app.textFields["My Wallet"]
     XCTAssertTrue(nameField.waitForExistence(timeout: 3), "Wallet name text field should exist")
     nameField.tap()
     nameField.typeText("UI Test Wallet")

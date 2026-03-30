@@ -51,7 +51,7 @@ enum Constants {
 
   static let maxCosigners = 10
   static let minCosigners = 1
-  static let maxAddressGap = 50
+  static let maxAddressGap = 20
 
   static func derivationPath(for network: BitcoinNetwork) -> String {
     "m/48'/\(network.coinType)'/0'/2'"

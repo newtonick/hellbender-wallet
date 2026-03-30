@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftUI
 
 // MARK: - Theme Data
@@ -10,6 +11,7 @@ struct HBTheme {
   var textPrimary: Color
   var textSecondary: Color
   var accent: Color
+  var heroBackground: Color
   var success: Color
   var error: Color
   var colorScheme: ColorScheme? = .dark
@@ -22,6 +24,7 @@ struct HBTheme {
     textPrimary: Color(.label),
     textSecondary: Color(.secondaryLabel),
     accent: Color(red: 0.969, green: 0.576, blue: 0.102),
+    heroBackground: Color(.tertiarySystemBackground),
     success: Color(.systemGreen),
     error: Color(.systemRed),
     colorScheme: nil
@@ -35,6 +38,7 @@ struct HBTheme {
     textPrimary: Color(red: 0.910, green: 0.902, blue: 0.890),
     textSecondary: Color(red: 0.420, green: 0.420, blue: 0.463),
     accent: Color(red: 0.969, green: 0.576, blue: 0.102),
+    heroBackground: Color(red: 0.110, green: 0.110, blue: 0.141),
     success: Color(red: 0.176, green: 0.545, blue: 0.341),
     error: Color(red: 0.851, green: 0.267, blue: 0.267),
     colorScheme: .dark
@@ -48,6 +52,7 @@ struct HBTheme {
     textPrimary: Color(red: 0.110, green: 0.110, blue: 0.118),
     textSecondary: Color(red: 0.557, green: 0.557, blue: 0.576),
     accent: Color(red: 0.969, green: 0.576, blue: 0.102),
+    heroBackground: Color(red: 0.930, green: 0.930, blue: 0.945),
     success: Color(red: 0.204, green: 0.780, blue: 0.349),
     error: Color(red: 1.000, green: 0.231, blue: 0.188),
     colorScheme: .light
@@ -120,6 +125,11 @@ extension Color {
 
   static var hbBorder: Color {
     ThemeManager.shared.theme.border
+  }
+
+  /// Hero
+  static var hbHeroBackground: Color {
+    ThemeManager.shared.theme.heroBackground
   }
 
   /// Accents
@@ -258,6 +268,54 @@ struct NetworkBadge: View {
       .padding(.vertical, 3)
       .background(badgeColor.opacity(0.15))
       .clipShape(Capsule())
+  }
+}
+
+// MARK: - Wallet Identicon
+
+struct WalletIdenticon: View {
+  let id: UUID
+
+  private let gridSize = 4
+  private let palette: [Color] = [
+    Color.hbBitcoinOrange,
+    Color.hbSteelBlue,
+    Color.hbSuccess,
+    Color(red: 0.6, green: 0.4, blue: 0.8),
+    Color(red: 0.9, green: 0.5, blue: 0.3),
+    Color(red: 0.3, green: 0.7, blue: 0.7),
+  ]
+
+  private var hashBytes: [UInt8] {
+    let data = withUnsafeBytes(of: id.uuid) { Data($0) }
+    return Array(SHA256.hash(data: data))
+  }
+
+  var body: some View {
+    let bytes = hashBytes
+    Canvas { context, size in
+      let cellW = size.width / CGFloat(gridSize)
+      let cellH = size.height / CGFloat(gridSize)
+
+      for row in 0 ..< gridSize {
+        for col in 0 ..< gridSize {
+          let byteIndex = (row * gridSize + col) % bytes.count
+          let byte = bytes[byteIndex]
+          let colorIndex = Int(byte) % palette.count
+          let brightness = Double(bytes[(byteIndex + 1) % bytes.count]) / 255.0
+          let opacity = 0.5 + brightness * 0.5
+
+          let rect = CGRect(
+            x: CGFloat(col) * cellW,
+            y: CGFloat(row) * cellH,
+            width: cellW,
+            height: cellH
+          )
+          context.fill(Path(rect), with: .color(palette[colorIndex].opacity(opacity)))
+        }
+      }
+    }
+    .clipShape(RoundedRectangle(cornerRadius: 6))
   }
 }
 

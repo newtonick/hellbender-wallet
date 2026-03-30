@@ -21,7 +21,7 @@ struct WalletNameView: View {
           .font(.hbLabel())
           .foregroundStyle(Color.hbTextSecondary)
 
-        TextField("My Multisig Wallet", text: $viewModel.walletName)
+        TextField("My Wallet", text: $viewModel.walletName)
           .font(.hbBody(18))
           .padding(14)
           .background(Color.hbSurfaceElevated)

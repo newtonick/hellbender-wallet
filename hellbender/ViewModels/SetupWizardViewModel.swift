@@ -78,7 +78,7 @@ final class SetupWizardViewModel {
 
   // Advanced settings
   var blockExplorerHost: String = ""
-  var addressGapLimit: String = "50"
+  var addressGapLimit: String = "20"
 
   // State
   var errorMessage: String?
@@ -408,7 +408,7 @@ final class SetupWizardViewModel {
       if creationMode == .createNew {
         currentStep = .cosignerImport
       }
-      // Import flow: back button is hidden, wallet already created
+    // Import flow: back button is hidden, wallet already created
     case .review: currentStep = .walletName
     }
   }

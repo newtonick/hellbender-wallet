@@ -78,7 +78,7 @@ final class SetupWizardViewModel {
 
   // Advanced settings
   var blockExplorerHost: String = ""
-  var addressGapLimit: String = "50"
+  var addressGapLimit: String = "20"
 
   // State
   var errorMessage: String?

@@ -20,6 +20,12 @@ final class TransactionListViewModel {
     bitcoinService.syncState
   }
 
+  func clearState() {
+    transactions = []
+    balance = 0
+    isLoading = true
+  }
+
   func loadActiveWallet(from wallets: [WalletProfile]) {
     guard let active = wallets.first(where: { $0.isActive }) else { return }
     expectedProfileId = active.id

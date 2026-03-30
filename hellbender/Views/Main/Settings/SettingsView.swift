@@ -7,10 +7,6 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbend
 
 struct SettingsView: View {
   @Environment(\.modelContext) private var modelContext
-  @Query private var wallets: [WalletProfile]
-  @State private var viewModel = WalletManagerViewModel()
-  @State private var walletToDelete: WalletProfile?
-  @State private var showAddWallet = false
   @State private var showLogExport = false
 
   var body: some View {
@@ -25,65 +21,6 @@ struct SettingsView: View {
           .padding(.bottom, 4)
 
         List {
-          // Wallets
-          Section("Wallets") {
-            ForEach(wallets) { wallet in
-              HStack(spacing: 12) {
-                Button {
-                  if !wallet.isActive {
-                    viewModel.setActiveWallet(wallet, allWallets: wallets, modelContext: modelContext)
-                  }
-                } label: {
-                  Image(systemName: wallet.isActive ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(wallet.isActive ? Color.hbBitcoinOrange : Color.hbTextSecondary)
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink(destination: WalletInfoView(wallet: wallet)) {
-                  HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
-                      Text(wallet.name)
-                        .font(.hbHeadline)
-                        .foregroundStyle(Color.hbTextPrimary)
-
-                      HStack(spacing: 8) {
-                        Text(wallet.multisigDescription)
-                          .font(.hbMono(12))
-                          .foregroundStyle(Color.hbTextSecondary)
-
-                        NetworkBadge(network: wallet.bitcoinNetwork)
-                      }
-                    }
-
-                    Spacer()
-                  }
-                }
-              }
-              .swipeActions(edge: .trailing) {
-                Button(role: .destructive) {
-                  walletToDelete = wallet
-                } label: {
-                  Label("Delete", systemImage: "trash")
-                }
-              }
-              .listRowBackground(Color.hbSurface)
-            }
-
-            if wallets.isEmpty {
-              Text("No wallets configured")
-                .foregroundStyle(Color.hbTextSecondary)
-                .listRowBackground(Color.hbSurface)
-            }
-
-            Button(action: { showAddWallet = true }) {
-              Label("Add Wallet", systemImage: "plus.circle")
-                .font(.hbBody(15))
-                .foregroundStyle(Color.hbBitcoinOrange)
-            }
-            .listRowBackground(Color.hbSurface)
-          }
-
           // Security
           AppLockSettingsSection()
 
@@ -125,24 +62,6 @@ struct SettingsView: View {
       }
       .background(Color.hbBackground)
       .navigationTitle("")
-      .sheet(isPresented: $showAddWallet) {
-        SetupWizardView(canDismiss: true)
-          .interactiveDismissDisabled()
-      }
-      .alert("Delete Wallet?", isPresented: .init(
-        get: { walletToDelete != nil },
-        set: { if !$0 { walletToDelete = nil } }
-      )) {
-        Button("Delete", role: .destructive) {
-          if let wallet = walletToDelete {
-            viewModel.deleteWallet(wallet, modelContext: modelContext)
-          }
-          walletToDelete = nil
-        }
-        Button("Cancel", role: .cancel) { walletToDelete = nil }
-      } message: {
-        Text("This will permanently delete \"\(walletToDelete?.name ?? "")\" and all its data.")
-      }
       .sheet(isPresented: $showLogExport) {
         LogExportSheet()
       }

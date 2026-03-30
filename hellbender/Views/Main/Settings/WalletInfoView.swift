@@ -16,6 +16,7 @@ struct WalletInfoView: View {
   @State private var showEditCosigners = false
   @State private var isEditingName = false
   @State private var editedName: String = ""
+  @FocusState private var nameFieldFocused: Bool
   @State private var electrumHostText: String = ""
   @State private var electrumPortText: String = ""
   @State private var isTestingConnection = false
@@ -54,7 +55,9 @@ struct WalletInfoView: View {
                 .foregroundStyle(Color.hbTextPrimary)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 180)
+                .focused($nameFieldFocused)
                 .onSubmit { saveName() }
+                .onAppear { nameFieldFocused = true }
               Button(action: saveName) {
                 Image(systemName: "checkmark.circle.fill")
                   .foregroundStyle(Color.hbSuccess)

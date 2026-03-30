@@ -10,6 +10,13 @@ struct TransactionListView: View {
   @Query private var walletLabels: [WalletLabel]
   @Query private var frozenUTXOs: [FrozenUTXO]
   @State private var viewModel = TransactionListViewModel()
+  @State private var walletManager = WalletManagerViewModel()
+  @State private var showWalletPicker = false
+  @State private var walletPickerEditMode = false
+  @State private var showAddWallet = false
+  @State private var showWalletInfo = false
+  @State private var walletToEdit: WalletProfile?
+  @State private var walletToDelete: WalletProfile?
   @State private var showConnectionStatus = false
   @State private var showDashboard = false
   @State private var showImportFilePicker = false
@@ -31,6 +38,10 @@ struct TransactionListView: View {
 
   private var fiatService: FiatPriceService {
     FiatPriceService.shared
+  }
+
+  private var activeWalletName: String {
+    wallets.first(where: { $0.isActive })?.name ?? viewModel.walletName
   }
 
   private var isPrivate: Bool {
@@ -188,24 +199,16 @@ struct TransactionListView: View {
   var body: some View {
     NavigationStack {
       VStack(spacing: 0) {
-        // Wallet status header
-        VStack(spacing: 8) {
+        // Wallet hero header
+        VStack(spacing: 12) {
+          // Wallet selector + menu row
           HStack {
-            Button(action: { showConnectionStatus = true }) {
-              SyncStatusDot(state: viewModel.syncState)
-            }
-
-            Text(viewModel.walletName)
-              .font(.hbHeadline)
-              .foregroundStyle(Color.hbTextPrimary)
-
-            NetworkBadge(network: viewModel.network)
-
-            Spacer()
-
             Menu {
               Button(action: { showDashboard = true }) {
                 Label("Dashboard", systemImage: "chart.bar.xaxis")
+              }
+              Button(action: { showWalletInfo = true }) {
+                Label("Wallet Info", systemImage: "info.circle")
               }
               Menu {
                 Button(action: { showImportFilePicker = true }) {
@@ -222,61 +225,79 @@ struct TransactionListView: View {
                 Label("Wallet Labels", systemImage: "tag")
               }
             } label: {
-              Image(systemName: "ellipsis.circle")
+              Image(systemName: "ellipsis")
                 .font(.system(size: 20))
                 .foregroundStyle(Color.hbTextSecondary)
-            }
-          }
-
-          HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-              if isPrivate {
-                Text(Constants.privacyText())
-                  .font(.hbAmountLarge)
-                  .foregroundStyle(Color.hbTextPrimary)
-              } else if fiatEnabled, fiatPrimary, let fiatStr = fiatService.formattedSatsToFiat(viewModel.balance) {
-                Text(fiatStr)
-                  .font(.hbAmountLarge)
-                  .foregroundStyle(Color.hbTextPrimary)
-                Text(viewModel.balance.formattedSats)
-                  .font(.hbBody(14))
-                  .foregroundStyle(Color.hbTextSecondary)
-              } else {
-                Text(viewModel.balance.formattedSats)
-                  .font(.hbAmountLarge)
-                  .foregroundStyle(Color.hbTextPrimary)
-                if fiatEnabled, let fiatStr = fiatService.formattedSatsToFiat(viewModel.balance) {
-                  Text(fiatStr)
-                    .font(.hbBody(14))
-                    .foregroundStyle(Color.hbTextSecondary)
-                }
-              }
-            }
-            .onLongPressGesture {
-              togglePrivacyMode()
-            }
-            .onTapGesture(count: 2) {
-              if fiatEnabled { fiatPrimary.toggle() }
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
             }
 
             Spacer()
 
-            if fiatEnabled {
-              Button(action: { fiatPrimary.toggle() }) {
-                Image(systemName: "arrow.up.arrow.down")
-                  .font(.system(size: 14, weight: .medium))
+            // Wallet picker
+            Button(action: { showWalletPicker.toggle() }) {
+              HStack(spacing: 8) {
+                if let walletID {
+                  WalletIdenticon(id: walletID)
+                    .frame(width: 24, height: 24)
+                }
+                Text(activeWalletName)
+                  .font(.hbHeadline)
+                  .foregroundStyle(Color.hbTextPrimary)
+                Image(systemName: showWalletPicker ? "chevron.up" : "chevron.down")
+                  .font(.system(size: 12, weight: .semibold))
                   .foregroundStyle(Color.hbTextSecondary)
-                  .padding(8)
-                  .background(Color.hbSurfaceElevated)
-                  .clipShape(Circle())
               }
+              .padding(.horizontal, 12)
+              .padding(.vertical, 8)
+              .overlay(
+                RoundedRectangle(cornerRadius: 22)
+                  .strokeBorder(Color.hbBorder, lineWidth: 1)
+              )
+            }
+
+            Spacer()
+
+            // Connection status
+            Button(action: { showConnectionStatus = true }) {
+              SyncStatusDot(state: viewModel.syncState)
             }
           }
 
+          // Balance
+          VStack(spacing: 2) {
+            if isPrivate {
+              Text(Constants.privacyText())
+                .font(.hbAmountLarge)
+                .foregroundStyle(Color.hbTextPrimary)
+            } else if fiatEnabled, fiatPrimary, let fiatStr = fiatService.formattedSatsToFiat(viewModel.balance) {
+              Text(fiatStr)
+                .font(.hbAmountLarge)
+                .foregroundStyle(Color.hbTextPrimary)
+              Text(viewModel.balance.formattedSats)
+                .font(.hbBody(14))
+                .foregroundStyle(Color.hbTextSecondary)
+            } else {
+              Text(viewModel.balance.formattedSats)
+                .font(.hbAmountLarge)
+                .foregroundStyle(Color.hbTextPrimary)
+              if fiatEnabled, let fiatStr = fiatService.formattedSatsToFiat(viewModel.balance) {
+                Text(fiatStr)
+                  .font(.hbBody(14))
+                  .foregroundStyle(Color.hbTextSecondary)
+              }
+            }
+          }
+          .onLongPressGesture {
+            togglePrivacyMode()
+          }
+          .onTapGesture(count: 2) {
+            if fiatEnabled { fiatPrimary.toggle() }
+          }
+
+          // Info row
           HStack {
-            Text(viewModel.multisigDescription + " multisig")
-              .font(.hbLabel())
-              .foregroundStyle(Color.hbTextSecondary)
+            NetworkBadge(network: viewModel.network)
 
             Spacer()
 
@@ -294,13 +315,29 @@ struct TransactionListView: View {
             }
           }
         }
-        .hbCard()
         .padding(16)
+        .background(Color.hbHeroBackground)
+
+        // Transactions section header
+        HStack {
+          Text("Transactions")
+            .font(.hbHeadline)
+            .foregroundStyle(Color.hbTextPrimary)
+          Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
 
         transactionContent
       }
       .background(Color.hbBackground)
+      .overlay { walletPickerOverlay }
       .navigationTitle("")
+      .onDisappear {
+        walletPickerEditMode = false
+        showWalletPicker = false
+      }
       .refreshable {
         await viewModel.refresh()
       }
@@ -310,12 +347,53 @@ struct TransactionListView: View {
       .sheet(isPresented: $showDashboard) {
         WalletDashboardView()
       }
+      .sheet(isPresented: $showAddWallet, onDismiss: {
+        if let active = wallets.first(where: { $0.isActive }),
+           bitcoinService.currentProfile?.id != active.id
+        {
+          viewModel.clearState()
+          bitcoinService.unloadWallet()
+          viewModel.loadActiveWallet(from: wallets)
+        }
+      }) {
+        SetupWizardView(canDismiss: true)
+          .interactiveDismissDisabled()
+      }
+      .sheet(isPresented: $showWalletInfo, onDismiss: {
+        walletToEdit = nil
+      }) {
+        if let wallet = walletToEdit ?? wallets.first(where: { $0.isActive }) {
+          NavigationStack {
+            WalletInfoView(wallet: wallet)
+              .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                  Button("Done") { showWalletInfo = false }
+                    .foregroundStyle(Color.hbBitcoinOrange)
+                }
+              }
+          }
+        }
+      }
       .fileImporter(
         isPresented: $showImportFilePicker,
         allowedContentTypes: [UTType(filenameExtension: "jsonl") ?? .plainText],
         allowsMultipleSelection: false
       ) { result in
         importLabelsFromFile(result: result)
+      }
+      .alert("Delete Wallet?", isPresented: .init(
+        get: { walletToDelete != nil },
+        set: { if !$0 { walletToDelete = nil } }
+      )) {
+        Button("Delete", role: .destructive) {
+          if let wallet = walletToDelete {
+            walletManager.deleteWallet(wallet, modelContext: modelContext)
+          }
+          walletToDelete = nil
+        }
+        Button("Cancel", role: .cancel) { walletToDelete = nil }
+      } message: {
+        Text("Are you sure you want to delete \"\(walletToDelete?.name ?? "")\"? This cannot be undone. You can re-import using your output descriptor.")
       }
       .alert("Import Labels", isPresented: $showImportResult) {
         Button("OK", role: .cancel) {}
@@ -393,6 +471,8 @@ struct TransactionListView: View {
           Task { await fiatService.fetchRatesIfNeeded() }
         }
       } else {
+        walletPickerEditMode = false
+        showWalletPicker = false
         bitcoinService.stopAutoSync()
       }
     }
@@ -423,6 +503,129 @@ struct TransactionListView: View {
     try? modelContext.save()
     let generator = UIImpactFeedbackGenerator(style: .medium)
     generator.impactOccurred()
+  }
+
+  @ViewBuilder
+  private var walletPickerOverlay: some View {
+    if showWalletPicker {
+      Color.black.opacity(0.35)
+        .ignoresSafeArea()
+        .onTapGesture {
+          walletPickerEditMode = false
+          showWalletPicker = false
+        }
+
+      VStack {
+        VStack(spacing: 0) {
+          // Header
+          HStack {
+            Button(action: {
+              walletPickerEditMode.toggle()
+            }) {
+              Text(walletPickerEditMode ? "Done" : "Edit")
+                .font(.hbBody(15))
+                .foregroundStyle(walletPickerEditMode ? Color.hbSuccess : Color.hbTextSecondary)
+            }
+            Spacer()
+            Text("Wallets")
+              .font(.hbHeadline)
+              .foregroundStyle(Color.hbTextPrimary)
+            Spacer()
+            Button(action: {
+              walletPickerEditMode = false
+              showWalletPicker = false
+              showAddWallet = true
+            }) {
+              Text("Add")
+                .font(.hbBody(15))
+                .foregroundStyle(Color.hbBitcoinOrange)
+            }
+          }
+          .padding(.horizontal, 14)
+          .padding(.vertical, 12)
+
+          Divider()
+            .background(Color.hbBorder)
+
+          ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
+            HStack(spacing: 12) {
+              if walletPickerEditMode {
+                Image(systemName: "minus.circle.fill")
+                  .font(.system(size: 20))
+                  .foregroundStyle(Color.hbError)
+                  .onTapGesture {
+                    walletToDelete = wallet
+                  }
+              }
+
+              WalletIdenticon(id: wallet.id)
+                .frame(width: 32, height: 32)
+                .overlay(
+                  RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color.hbBitcoinOrange, lineWidth: wallet.isActive ? 2 : 0)
+                )
+              VStack(spacing: 4) {
+                NetworkBadge(network: wallet.bitcoinNetwork)
+                Text(wallet.multisigDescription)
+                  .font(.hbLabel())
+                  .foregroundStyle(Color.hbTextSecondary)
+              }
+              .fixedSize()
+              Text(wallet.name)
+                .font(.hbBody())
+                .foregroundStyle(Color.hbTextPrimary)
+              Spacer()
+
+              if walletPickerEditMode {
+                Image(systemName: "chevron.right")
+                  .font(.system(size: 14, weight: .semibold))
+                  .foregroundStyle(Color.hbTextSecondary)
+              }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 15)
+            .background(wallet.isActive ? Color.hbBitcoinOrange.opacity(0.08) : Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture {
+              if walletPickerEditMode {
+                walletToEdit = wallet
+                walletPickerEditMode = false
+                showWalletPicker = false
+                showWalletInfo = true
+              } else {
+                guard !wallet.isActive else {
+                  showWalletPicker = false
+                  return
+                }
+                viewModel.clearState()
+                walletManager.setActiveWallet(wallet, allWallets: wallets, modelContext: modelContext)
+                showWalletPicker = false
+              }
+            }
+            .onLongPressGesture {
+              walletPickerEditMode = true
+            }
+            if index < wallets.count - 1 {
+              Divider()
+                .background(Color.hbBorder)
+            }
+          }
+        }
+        .background(Color.hbSurfaceElevated)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+          RoundedRectangle(cornerRadius: 12)
+            .strokeBorder(Color.hbBorder, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+        .padding(.horizontal, 35)
+        .padding(.top, 60)
+
+        Spacer()
+      }
+      .transition(.opacity)
+      .animation(.easeInOut(duration: 0.15), value: showWalletPicker)
+    }
   }
 
   @ViewBuilder

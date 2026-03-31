@@ -7,9 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3C08EDBF2F5E3A8000C2268E /* BitcoinDevKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000200000000000000D0 /* BitcoinDevKit */; };
 		3C08EDC02F5E3A8000C2268E /* URKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000500000000000000D0 /* URKit */; };
 		3C08EDC12F5E3A8000C2268E /* URUI in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000800000000000000D0 /* URUI */; };
+		3C1E1C462F7B0D99002FDAE2 /* BitcoinDevKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3C1E1C452F7B0D99002FDAE2 /* BitcoinDevKit */; };
+		3C1E1FA52F7B5F63002FDAE2 /* BitcoinDevKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3C1E1FA42F7B5F63002FDAE2 /* BitcoinDevKit */; };
 		AA0000B100000000000000D0 /* Bbqr in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000B000000000000000D0 /* Bbqr */; };
 /* End PBXBuildFile section */
 
@@ -59,9 +60,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3C1E1C462F7B0D99002FDAE2 /* BitcoinDevKit in Frameworks */,
 				3C08EDC12F5E3A8000C2268E /* URUI in Frameworks */,
 				3C08EDC02F5E3A8000C2268E /* URKit in Frameworks */,
-				3C08EDBF2F5E3A8000C2268E /* BitcoinDevKit in Frameworks */,
+				3C1E1FA52F7B5F63002FDAE2 /* BitcoinDevKit in Frameworks */,
 				AA0000B100000000000000D0 /* Bbqr in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -123,10 +125,11 @@
 			);
 			name = hellbender;
 			packageProductDependencies = (
-				AA00000200000000000000D0 /* BitcoinDevKit */,
 				AA00000500000000000000D0 /* URKit */,
 				AA00000800000000000000D0 /* URUI */,
 				AA0000B000000000000000D0 /* Bbqr */,
+				3C1E1C452F7B0D99002FDAE2 /* BitcoinDevKit */,
+				3C1E1FA42F7B5F63002FDAE2 /* BitcoinDevKit */,
 			);
 			productName = hellbender;
 			productReference = 3C9ACE242F5DED94009B00D0 /* hellbender.app */;
@@ -211,10 +214,10 @@
 			mainGroup = 3C9ACE1B2F5DED94009B00D0;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				AA00000100000000000000D0 /* XCRemoteSwiftPackageReference "bdk-swift" */,
 				AA00000400000000000000D0 /* XCRemoteSwiftPackageReference "URKit" */,
 				AA00000700000000000000D0 /* XCRemoteSwiftPackageReference "URUI" */,
 				AA0000A000000000000000D0 /* XCRemoteSwiftPackageReference "bbqr-swift" */,
+				3C1E1FA32F7B5F63002FDAE2 /* XCRemoteSwiftPackageReference "bdk-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3C9ACE252F5DED94009B00D0 /* Products */;
@@ -589,12 +592,12 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		AA00000100000000000000D0 /* XCRemoteSwiftPackageReference "bdk-swift" */ = {
+		3C1E1FA32F7B5F63002FDAE2 /* XCRemoteSwiftPackageReference "bdk-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/bitcoindevkit/bdk-swift";
+			repositoryURL = "https://github.com/newtonick/bdk-swift";
 			requirement = {
 				kind = exactVersion;
-				version = 2.3.1;
+				version = "2.3.1-ssl-patch";
 			};
 		};
 		AA00000400000000000000D0 /* XCRemoteSwiftPackageReference "URKit" */ = {
@@ -624,9 +627,13 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		AA00000200000000000000D0 /* BitcoinDevKit */ = {
+		3C1E1C452F7B0D99002FDAE2 /* BitcoinDevKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = AA00000100000000000000D0 /* XCRemoteSwiftPackageReference "bdk-swift" */;
+			productName = BitcoinDevKit;
+		};
+		3C1E1FA42F7B5F63002FDAE2 /* BitcoinDevKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3C1E1FA32F7B5F63002FDAE2 /* XCRemoteSwiftPackageReference "bdk-swift" */;
 			productName = BitcoinDevKit;
 		};
 		AA00000500000000000000D0 /* URKit */ = {

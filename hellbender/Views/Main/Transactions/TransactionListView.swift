@@ -235,7 +235,7 @@ struct TransactionListView: View {
             Spacer()
 
             // Wallet picker
-            Button(action: { showWalletPicker.toggle() }) {
+            Button(action: { withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker.toggle() } }) {
               HStack(spacing: 8) {
                 if let walletID {
                   WalletIdenticon(id: walletID)
@@ -510,9 +510,10 @@ struct TransactionListView: View {
     if showWalletPicker {
       Color.black.opacity(0.35)
         .ignoresSafeArea()
+        .transition(.opacity)
         .onTapGesture {
           walletPickerEditMode = false
-          showWalletPicker = false
+          withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
         }
 
       VStack {
@@ -533,7 +534,7 @@ struct TransactionListView: View {
             Spacer()
             Button(action: {
               walletPickerEditMode = false
-              showWalletPicker = false
+              withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
               showAddWallet = true
             }) {
               Text("Add")
@@ -590,16 +591,16 @@ struct TransactionListView: View {
               if walletPickerEditMode {
                 walletToEdit = wallet
                 walletPickerEditMode = false
-                showWalletPicker = false
+                withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
                 showWalletInfo = true
               } else {
                 guard !wallet.isActive else {
-                  showWalletPicker = false
+                  withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
                   return
                 }
                 viewModel.clearState()
                 walletManager.setActiveWallet(wallet, allWallets: wallets, modelContext: modelContext)
-                showWalletPicker = false
+                withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
               }
             }
             .onLongPressGesture {
@@ -623,8 +624,10 @@ struct TransactionListView: View {
 
         Spacer()
       }
-      .transition(.opacity)
-      .animation(.easeInOut(duration: 0.15), value: showWalletPicker)
+      .transition(.asymmetric(
+        insertion: .scale(scale: 0.9, anchor: .top).combined(with: .opacity),
+        removal: .scale(scale: 0.95, anchor: .top).combined(with: .opacity)
+      ))
     }
   }
 

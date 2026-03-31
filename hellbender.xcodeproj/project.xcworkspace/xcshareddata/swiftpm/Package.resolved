@@ -1,5 +1,5 @@
 {
-  "originHash" : "561131c8e974cf1aaf4e7fb48eebaf74a94dabe0b90801de672b9398a0361a37",
+  "originHash" : "11f3c5d73e6615e055e5b9f3671e6180f277a34f298c3f7c6935dcc8dd281089",
   "pins" : [
     {
       "identity" : "bbqr-swift",
@@ -40,10 +40,10 @@
     {
       "identity" : "bdk-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/bitcoindevkit/bdk-swift",
+      "location" : "https://github.com/newtonick/bdk-swift",
       "state" : {
-        "revision" : "c38d7caa06ec26289cb40b1ea42531aea631c47e",
-        "version" : "2.3.1"
+        "revision" : "4660bc83ea6088906edb090652d261e8ed4c09e3",
+        "version" : "2.3.1-ssl-patch"
       }
     },
     {

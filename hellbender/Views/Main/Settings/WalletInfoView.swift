@@ -26,6 +26,7 @@ struct WalletInfoView: View {
   @State private var showInsecureSSLAlert = false
   @State private var showDescriptorQR = false
   @State private var showDeleteConfirmation = false
+  @State private var showResetElectrumConfirmation = false
   @State private var showDescriptorPDF = false
 
   private var combinedDescriptor: String {
@@ -257,7 +258,7 @@ struct WalletInfoView: View {
             }
             .disabled(isTestingConnection)
 
-            Button(action: resetElectrumDefaults) {
+            Button(action: { showResetElectrumConfirmation = true }) {
               HStack(spacing: 6) {
                 Image(systemName: "arrow.counterclockwise")
                 Text("Reset")
@@ -272,6 +273,14 @@ struct WalletInfoView: View {
           }
         }
         .hbCard()
+        .alert("Reset Electrum Server?", isPresented: $showResetElectrumConfirmation) {
+          Button("Cancel", role: .cancel) {}
+          Button("Reset", role: .destructive) {
+            resetElectrumDefaults()
+          }
+        } message: {
+          Text("This will clear custom host, port, and protocol settings and revert to network defaults.")
+        }
 
         // Block Explorer
         VStack(spacing: 12) {

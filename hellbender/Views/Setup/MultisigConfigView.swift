@@ -87,9 +87,9 @@ struct MultisigConfigView: View {
           .hbCard()
 
           // Electrum server
-          ElectrumServerSetupSection(viewModel: viewModel)
+          ElectrumServerSetupSection(viewModel: viewModel, initiallyExpanded: viewModel.network == .mainnet)
 
-          // Block explorer
+          // Advanced
           WalletAdvancedSetupSection(viewModel: viewModel)
         }
         .padding(.horizontal, 24)

@@ -474,6 +474,33 @@ final class BitcoinService {
     return UInt32(header.height)
   }
 
+  /// Known genesis block nonces for network verification.
+  private static let genesisNonce: [BitcoinNetwork: UInt32] = [
+    .mainnet: 2_083_236_893,
+    .testnet3: 414_098_458,
+    .testnet4: 393_743_547,
+  ]
+
+  /// Detects which network an Electrum server is on by checking its genesis block nonce.
+  /// Returns nil for unknown networks (e.g. signet).
+  func detectElectrumNetwork(config: ElectrumConfig) async throws -> BitcoinNetwork? {
+    if config.useSSL, !config.allowInsecureSSL {
+      try await Self.validateTLSCertificate(host: config.host, port: config.port)
+    }
+
+    let url = config.url
+    let validateDomain = !config.allowInsecureSSL
+    let genesisHeader = try await Task.detached {
+      let client = try ElectrumClient(url: url, validateDomain: validateDomain)
+      return try client.blockHeader(height: 0)
+    }.value
+
+    for (network, nonce) in Self.genesisNonce where genesisHeader.nonce == nonce {
+      return network
+    }
+    return nil
+  }
+
   /// Performs a native TLS handshake to validate the server's certificate.
   /// Throws a clear error if the certificate is self-signed or untrusted.
   private static func validateTLSCertificate(host: String, port: UInt16) async throws {

@@ -98,10 +98,10 @@ struct DescriptorImportView: View {
         }
 
         // Electrum server
-        ElectrumServerSetupSection(viewModel: viewModel)
+        ElectrumServerSetupSection(viewModel: viewModel, initiallyExpanded: viewModel.network == .mainnet)
           .padding(.horizontal, 24)
 
-        // Block explorer & gap limit
+        // Advanced
         WalletAdvancedSetupSection(viewModel: viewModel)
           .padding(.horizontal, 24)
 

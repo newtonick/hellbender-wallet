@@ -105,7 +105,7 @@ struct ConnectionStatusView: View {
       if let result = testResult {
         Text(result)
           .font(.hbBody(13))
-          .foregroundStyle(result.starts(with: "Success") ? Color.hbSuccess : Color.hbError)
+          .foregroundStyle(result.starts(with: "Success") ? Color.hbSuccess : result.starts(with: "Warning") ? Color.hbBitcoinOrange : Color.hbError)
       }
     }
     .hbCard()
@@ -343,7 +343,17 @@ struct ConnectionStatusView: View {
       let config = wallet.electrumConfig
       do {
         let height = try await service.testElectrumConnection(config: config)
-        testResult = "Success — chain tip at block \(height)"
+        let network = wallet.bitcoinNetwork
+        if network != .signet {
+          if let detected = try? await service.detectElectrumNetwork(config: config),
+             detected != network
+          {
+            testResult = "Warning: Server is \(detected.displayName), expected \(network.displayName)"
+            isTesting = false
+            return
+          }
+        }
+        testResult = "Success — \(network.displayName) Chain Tip Height \(height)"
       } catch {
         testResult = "Failed: \(BitcoinService.friendlyElectrumError(error))"
       }

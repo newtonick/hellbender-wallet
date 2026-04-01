@@ -1,0 +1,20 @@
+name: Xcode - Unit Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Run unit tests using xcodebuild
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Run Unit Tests
+        run: |
+          xcodebuild test -project hellbender.xcodeproj -scheme hellbender -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:hellbenderTests -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}

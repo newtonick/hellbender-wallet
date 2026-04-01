@@ -17,4 +17,4 @@ jobs:
 
       - name: Run Unit Tests
         run: |
-          xcodebuild test -project hellbender.xcodeproj -scheme hellbender -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' -only-testing:hellbenderTests -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}
+          xcodebuild test -project hellbender.xcodeproj -scheme hellbender -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:hellbenderTests -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}

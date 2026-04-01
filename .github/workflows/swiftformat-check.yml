@@ -1,0 +1,22 @@
+name: SwiftFormat Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  swiftformat:
+    name: Check code formatting with SwiftFormat
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install SwiftFormat
+        run: brew install swiftformat
+
+      - name: Check Formatting
+        run: swiftformat --lint .

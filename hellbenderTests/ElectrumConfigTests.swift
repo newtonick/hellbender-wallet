@@ -21,8 +21,8 @@ struct ElectrumConfigTests {
 
   @Test func defaultTestnet3Config() {
     let config = ElectrumConfig(network: .testnet3)
-    #expect(config.host == "testnet.aranguren.org")
-    #expect(config.port == 51002)
+    #expect(config.host == "electrum.blockstream.info")
+    #expect(config.port == 60002)
     #expect(config.useSSL == true)
   }
 

@@ -116,7 +116,7 @@ struct SigningFlowTests {
     #expect(vm.errorMessage != nil)
   }
 
-  @Test func broadcastTriggersSyncOnSuccess() async {
+  @Test func broadcastSetsTxidOnSuccess() async {
     let mock = makeMockService()
     let vm = SendViewModel(bitcoinService: mock)
     vm.psbtBytes = Data([0x01])
@@ -124,9 +124,10 @@ struct SigningFlowTests {
 
     await vm.broadcast()
 
-    // Give the fire-and-forget Task a moment to execute
-    try? await Task.sleep(for: .milliseconds(100))
-    #expect(mock.syncCallCount >= 1, "Should trigger sync after broadcast")
+    #expect(vm.broadcastTxid == "txid_abc")
+    // Sync is now triggered by the View layer (BroadcastResultView) on navigation,
+    // not by the ViewModel after broadcast
+    #expect(mock.syncCallCount == 0)
   }
 
   // MARK: - SendViewModel + Mock: createPSBT

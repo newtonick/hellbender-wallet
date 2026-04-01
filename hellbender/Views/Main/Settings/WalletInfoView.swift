@@ -235,7 +235,7 @@ struct WalletInfoView: View {
           if let result = connectionTestResult {
             Text(result)
               .font(.hbBody(13))
-              .foregroundStyle(result.starts(with: "Success") ? Color.hbSuccess : Color.hbError)
+              .foregroundStyle(result.starts(with: "Success") ? Color.hbSuccess : result.starts(with: "Warning") ? Color.hbBitcoinOrange : Color.hbError)
           }
 
           HStack(spacing: 12) {
@@ -476,9 +476,19 @@ struct WalletInfoView: View {
     logger.info("Testing Electrum connection to \(config.url, privacy: .public)")
     Task {
       do {
-        try await BitcoinService.shared.testElectrumConnection(config: config)
+        let height = try await BitcoinService.shared.testElectrumConnection(config: config)
         logger.info("Electrum connection test succeeded")
-        connectionTestResult = "Success — server responded to ping"
+        let network = wallet.bitcoinNetwork
+        if network != .signet {
+          if let detected = try? await BitcoinService.shared.detectElectrumNetwork(config: config),
+             detected != network
+          {
+            connectionTestResult = "Warning: Server is \(detected.displayName), expected \(network.displayName)"
+            isTestingConnection = false
+            return
+          }
+        }
+        connectionTestResult = "Success — \(network.displayName) Chain Tip Height \(height)"
       } catch {
         logger.error("Electrum connection test failed: \(error)")
         connectionTestResult = "Failed: \(error.localizedDescription)"

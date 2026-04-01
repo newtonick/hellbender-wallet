@@ -177,8 +177,9 @@ struct ElectrumServerSetupSection: View {
         let height = try await BitcoinService.shared.testElectrumConnection(config: config)
         // Verify network for mainnet, testnet3, testnet4 (skip signet)
         if expectedNetwork != .signet {
-          let detected = try await BitcoinService.shared.detectElectrumNetwork(config: config)
-          if let detected, detected != expectedNetwork {
+          if let detected = try? await BitcoinService.shared.detectElectrumNetwork(config: config),
+             detected != expectedNetwork
+          {
             connectionTestResult = "Warning: Server is \(detected.displayName), expected \(expectedNetwork.displayName)"
             isTestingConnection = false
             return

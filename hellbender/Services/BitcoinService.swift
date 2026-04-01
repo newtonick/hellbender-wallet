@@ -912,10 +912,18 @@ final class BitcoinService {
       if medRate > maxSaneRate { medRate = 2.0 }
       if lowRate > maxSaneRate { lowRate = 1.0 }
 
+      let fast = highRate > 0 ? highRate : 5.0
+      var medium = medRate > 0 ? medRate : 2.0
+      var slow = lowRate > 0 ? lowRate : 1.0
+
+      // Ensure fees are monotonically decreasing: fast >= medium >= slow
+      if medium > fast { medium = fast }
+      if slow > medium { slow = medium }
+
       return RecommendedFees(
-        fast: highRate > 0 ? highRate : 5.0,
-        medium: medRate > 0 ? medRate : 2.0,
-        slow: lowRate > 0 ? lowRate : 1.0
+        fast: fast,
+        medium: medium,
+        slow: slow
       )
     }.value
   }

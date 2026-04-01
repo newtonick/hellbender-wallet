@@ -151,7 +151,7 @@ struct CosignerImportView: View {
       .padding(.top, 16)
     }
     .sheet(isPresented: $showScanner) {
-      URScannerSheet { result in
+      URScannerSheet(preferMacroCamera: true) { result in
         handleScanResult(result)
         showScanner = false
       }

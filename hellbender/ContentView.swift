@@ -39,6 +39,12 @@ struct ContentView: View {
       if shouldShowLock {
         AppLockView(lockVM: lockVM, modelContext: modelContext)
       }
+
+      // Privacy screen — hides content in app switcher when app lock is enabled
+      if appLockEnabled, scenePhase == .inactive, !shouldShowLock {
+        PrivacyOverlayView()
+          .transition(.opacity)
+      }
     }
     .onAppear {
       // If wallets exist but none are active (e.g. after a failed delete),
@@ -76,6 +82,33 @@ struct ContentView: View {
       @unknown default:
         break
       }
+    }
+  }
+}
+
+// MARK: - Privacy Overlay
+
+private struct PrivacyOverlayView: View {
+  var body: some View {
+    ZStack {
+      Color.hbBackground
+        .ignoresSafeArea()
+
+      Image("WelcomeIcon")
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: 120, height: 120)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(
+          RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .stroke(Color.hbBackground, lineWidth: 24)
+            .blur(radius: 12)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        )
+        .overlay(
+          RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .strokeBorder(Color.hbBorder.opacity(0.5), lineWidth: 1)
+        )
     }
   }
 }

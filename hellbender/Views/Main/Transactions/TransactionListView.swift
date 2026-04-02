@@ -403,7 +403,7 @@ struct TransactionListView: View {
         }
       }
       .sheet(isPresented: $showImportQRScanner) {
-        URScannerSheet { result in
+        URScannerSheet(expectedTypes: [.rawBytes], onCancel: { showImportQRScanner = false }) { result in
           handleQRImportResult(result)
         }
       }

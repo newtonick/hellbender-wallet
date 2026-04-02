@@ -171,7 +171,7 @@ struct ImportPSBTQRSheet: View {
 
   var body: some View {
     NavigationStack {
-      URScannerSheet(preferMacroCamera: true) { result in
+      URScannerSheet(preferMacroCamera: true, expectedTypes: [.psbt]) { result in
         switch result {
         case let .psbt(data):
           viewModel.importPSBT(data, source: "QR", context: modelContext)

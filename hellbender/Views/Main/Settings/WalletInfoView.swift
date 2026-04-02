@@ -637,7 +637,7 @@ private struct EditCosignersView: View {
         }
       }
       .sheet(isPresented: $showScanner) {
-        URScannerSheet { result in
+        URScannerSheet(expectedTypes: [.hdKey], onCancel: { showScanner = false }) { result in
           handleScanResult(result)
           showScanner = false
         }

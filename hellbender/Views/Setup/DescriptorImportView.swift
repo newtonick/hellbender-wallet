@@ -132,7 +132,7 @@ struct DescriptorImportView: View {
     }
     .scrollDismissesKeyboard(.interactively)
     .sheet(isPresented: $showScanner) {
-      URScannerSheet { result in
+      URScannerSheet(expectedTypes: [.descriptor], onCancel: { showScanner = false }) { result in
         if case let .descriptor(text) = result {
           viewModel.importedDescriptorText = text
         }

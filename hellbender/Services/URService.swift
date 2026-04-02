@@ -9,6 +9,43 @@ enum AppURResult {
   case descriptor(String)
   case rawBytes(Data)
   case unknown(String)
+
+  var expectedType: ScanExpectedType? {
+    switch self {
+    case .psbt: .psbt
+    case .hdKey: .hdKey
+    case .descriptor: .descriptor
+    case .rawBytes: .rawBytes
+    case .unknown: nil
+    }
+  }
+
+  var displayName: String {
+    switch self {
+    case .psbt: "a PSBT"
+    case .hdKey: "a cosigner key"
+    case .descriptor: "a descriptor"
+    case .rawBytes: "raw data"
+    case .unknown: "an unrecognized QR code"
+    }
+  }
+}
+
+/// Declares what type of QR result a scanner caller expects.
+enum ScanExpectedType: Hashable {
+  case psbt
+  case hdKey
+  case descriptor
+  case rawBytes
+
+  var displayName: String {
+    switch self {
+    case .psbt: "PSBT"
+    case .hdKey: "cosigner key"
+    case .descriptor: "descriptor"
+    case .rawBytes: "UR-encoded data"
+    }
+  }
 }
 
 enum URService {

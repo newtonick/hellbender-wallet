@@ -10,7 +10,9 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "hellbend
 
 struct URScannerSheet: View {
   let onResult: (AppURResult) -> Void
+  let onCancel: (() -> Void)?
   let preferMacroCamera: Bool
+  let expectedTypes: Set<ScanExpectedType>
 
   @StateObject private var videoSession: URVideoSession
   @StateObject private var scanState: URScanState
@@ -21,12 +23,20 @@ struct URScannerSheet: View {
   @State private var bbqrPartsReceived: UInt16 = 0
   @State private var currentZoom: CGFloat = 1.0
   @State private var baseZoom: CGFloat = 1.0
+  @State private var errorBannerMessage: String?
 
   private let codesPublisher: URCodesPublisher
 
-  init(preferMacroCamera: Bool = false, onResult: @escaping (AppURResult) -> Void) {
+  init(
+    preferMacroCamera: Bool = false,
+    expectedTypes: Set<ScanExpectedType> = [],
+    onCancel: (() -> Void)? = nil,
+    onResult: @escaping (AppURResult) -> Void
+  ) {
     self.onResult = onResult
+    self.onCancel = onCancel
     self.preferMacroCamera = preferMacroCamera
+    self.expectedTypes = expectedTypes
     let publisher = URCodesPublisher()
     codesPublisher = publisher
     _videoSession = StateObject(wrappedValue: URVideoSession(codesPublisher: publisher))
@@ -69,7 +79,43 @@ struct URScannerSheet: View {
           .padding(.horizontal, 24)
         }
       }
+
+      // Cancel button — top trailing
+      if let onCancel {
+        VStack {
+          HStack {
+            Spacer()
+            Button(action: onCancel) {
+              Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 28))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(Color.hbTextPrimary, Color.hbSurface)
+            }
+            .padding(16)
+          }
+          Spacer()
+        }
+      }
+
+      // Error banner — bottom
+      if let errorBannerMessage {
+        VStack {
+          Spacer()
+          Text(errorBannerMessage)
+            .font(.hbBody(14))
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color.hbError.opacity(0.9))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+      }
     }
+    .animation(.easeInOut(duration: 0.25), value: errorBannerMessage)
     .onAppear {
       if preferMacroCamera {
         switchToMacroCameraIfAvailable()
@@ -77,25 +123,60 @@ struct URScannerSheet: View {
       configureCameraForCloseScanning()
     }
     .onReceive(scanState.resultPublisher) { result in
+      errorBannerMessage = nil
       switch result {
       case let .ur(ur):
-        let appResult = URService.processUR(ur)
-        onResult(appResult)
+        handleResult(URService.processUR(ur))
       case let .progress(progress):
         estimatedPercent = progress.estimatedPercentComplete
       case let .other(code):
         if let hdKeyResult = URService.parseTextEncodedXpub(code) {
-          onResult(hdKeyResult)
+          handleResult(hdKeyResult)
         } else if let descriptor = URService.extractDescriptorFromJSON(code) {
-          onResult(.descriptor(descriptor))
-        } else {
+          handleResult(.descriptor(descriptor))
+        } else if code.hasPrefix("B$") {
           handlePossibleBBQR(code)
+        } else {
+          handleResult(.unknown(code))
         }
       case .reject, .failure:
-        break
+        if !expectedTypes.isEmpty {
+          showErrorBanner("QR code not recognized. Expected \(expectedTypeDescription).")
+        }
       }
     }
   }
+
+  // MARK: - Result filtering
+
+  private func handleResult(_ appResult: AppURResult) {
+    guard !expectedTypes.isEmpty else {
+      onResult(appResult)
+      return
+    }
+
+    if let type = appResult.expectedType, expectedTypes.contains(type) {
+      onResult(appResult)
+      return
+    }
+
+    showErrorBanner("Expected \(expectedTypeDescription), but scanned \(appResult.displayName).")
+  }
+
+  private var expectedTypeDescription: String {
+    let names = expectedTypes.map(\.displayName)
+    switch names.count {
+    case 1: return names[0]
+    case 2: return "\(names[0]) or \(names[1])"
+    default: return names.dropLast().joined(separator: ", ") + ", or " + (names.last ?? "")
+    }
+  }
+
+  private func showErrorBanner(_ message: String) {
+    errorBannerMessage = message
+  }
+
+  // MARK: - Progress
 
   private var displayProgress: Double {
     if bbqrMode, bbqrPartsTotal > 0 {
@@ -104,9 +185,9 @@ struct URScannerSheet: View {
     return estimatedPercent
   }
 
+  // MARK: - Camera
+
   private func switchToMacroCameraIfAvailable() {
-    // Discover a virtual multi-camera device (dual-wide or triple) which
-    // supports automatic macro switching on iPhone 13 Pro+.
     let preferredTypes: [AVCaptureDevice.DeviceType] = [
       .builtInTripleCamera,
       .builtInDualWideCamera,
@@ -126,21 +207,15 @@ struct URScannerSheet: View {
     guard let device = videoSession.currentCaptureDevice else { return }
     try? device.lockForConfiguration()
 
-    // Continuous autofocus restricted to near range for close-up QR codes
     if device.isFocusModeSupported(.continuousAutoFocus) {
       device.focusMode = .continuousAutoFocus
     }
     if device.isAutoFocusRangeRestrictionSupported {
       device.autoFocusRangeRestriction = .near
     }
-
-    // Center the focus point for QR codes held in front of the camera
     if device.isFocusPointOfInterestSupported {
       device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
     }
-
-    // Geometric distortion correction improves QR readability when the
-    // ultra-wide lens engages for macro mode (iPhone 13 Pro+)
     if device.isGeometricDistortionCorrectionSupported {
       device.isGeometricDistortionCorrectionEnabled = true
     }
@@ -148,9 +223,9 @@ struct URScannerSheet: View {
     device.unlockForConfiguration()
   }
 
-  private func handlePossibleBBQR(_ code: String) {
-    guard code.hasPrefix("B$") else { return }
+  // MARK: - BBQR
 
+  private func handlePossibleBBQR(_ code: String) {
     do {
       let result = try bbqrJoiner.addPart(part: code)
       switch result {
@@ -168,11 +243,11 @@ struct URScannerSheet: View {
         bbqrMode = false
         switch fileType {
         case .psbt:
-          onResult(.psbt(data))
+          handleResult(.psbt(data))
         case .transaction:
-          onResult(.unknown("bbqr-transaction"))
+          handleResult(.unknown("bbqr-transaction"))
         case .json, .cbor, .unicodeText:
-          onResult(.unknown("bbqr-\(fileType)"))
+          handleResult(.unknown("bbqr-\(fileType)"))
         }
       }
     } catch {

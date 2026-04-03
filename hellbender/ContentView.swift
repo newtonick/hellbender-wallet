@@ -13,6 +13,7 @@ struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.modelContext) private var modelContext
   @State private var lockVM = AppLockViewModel()
+  @State private var showPrivacyScreen = false
 
   private var hasActiveWallet: Bool {
     wallets.contains { $0.isActive }
@@ -41,9 +42,8 @@ struct ContentView: View {
       }
 
       // Privacy screen — hides content in app switcher when app lock is enabled
-      if appLockEnabled, scenePhase == .inactive, !shouldShowLock {
+      if showPrivacyScreen, !shouldShowLock {
         PrivacyOverlayView()
-          .transition(.opacity)
       }
     }
     .onAppear {
@@ -74,6 +74,7 @@ struct ContentView: View {
         }
       case .active:
         logger.info("Scene phase: active")
+        showPrivacyScreen = false
         if appLockEnabled {
           lockVM.handleForeground(timeout: lockTimeout)
         }
@@ -81,6 +82,11 @@ struct ContentView: View {
         logger.info("Scene phase: inactive")
       @unknown default:
         break
+      }
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+      if appLockEnabled {
+        showPrivacyScreen = true
       }
     }
   }

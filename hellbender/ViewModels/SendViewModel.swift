@@ -27,6 +27,7 @@ final class SendViewModel: PSBTFlowManaging {
   var selectedFeePreset: FeePreset = .medium
   var showAddressScanner: Bool = false
   var scanTargetRecipientIndex: Int = 0
+  var focusAmountIndex: Int? = nil
   var recommendedFees: BitcoinService.RecommendedFees?
 
   // UTXO selection
@@ -132,6 +133,10 @@ final class SendViewModel: PSBTFlowManaging {
   var hasAnyInput: Bool {
     recipients.contains { !$0.isAddressEmpty || !$0.isAmountEmpty || !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
       || manualUTXOSelection
+  }
+
+  var isReviewReady: Bool {
+    !recipients.isEmpty && recipients.allSatisfy { !$0.isAddressEmpty && (!$0.isAmountEmpty || $0.isSendMax) }
   }
 
   var hasValidRecipients: Bool {

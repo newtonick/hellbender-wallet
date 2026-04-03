@@ -27,6 +27,10 @@ struct SendFlowView: View {
 
             if viewModel.currentStep == .recipients {
               Menu {
+                Button(action: { viewModel.addRecipient() }) {
+                  Label("Add Recipient", systemImage: "plus")
+                }
+                .disabled(!viewModel.canAddRecipient)
                 Button(action: { viewModel.showLoadPSBT = true }) {
                   Label("Saved PSBTs", systemImage: "tray.and.arrow.down")
                 }
@@ -37,9 +41,11 @@ struct SendFlowView: View {
                   Label("Import PSBT via File", systemImage: "doc")
                 }
               } label: {
-                Image(systemName: "ellipsis.circle")
-                  .font(.system(size: 18))
-                  .foregroundStyle(Color.hbBitcoinOrange)
+                Image(systemName: "ellipsis")
+                  .font(.system(size: 20))
+                  .foregroundStyle(Color.hbTextSecondary)
+                  .frame(width: 44, height: 44)
+                  .contentShape(Rectangle())
               }
             }
           }

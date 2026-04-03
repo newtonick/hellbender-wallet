@@ -41,13 +41,6 @@ struct SendRecipientsView: View {
           RecipientCard(viewModel: viewModel, index: index)
         }
 
-        Button(action: { viewModel.addRecipient() }) {
-          Label("Add Recipient", systemImage: "plus.circle")
-            .font(.hbBody(15))
-            .foregroundStyle(viewModel.canAddRecipient ? Color.hbBitcoinOrange : Color.hbTextSecondary)
-        }
-        .disabled(!viewModel.canAddRecipient)
-
         // Fee preset picker
         FeePresetCard(viewModel: viewModel)
           .padding(.horizontal, 24)
@@ -67,13 +60,13 @@ struct SendRecipientsView: View {
           if viewModel.isProcessing {
             ProgressView()
               .tint(.white)
-              .hbPrimaryButton()
+              .hbPrimaryButton(isEnabled: viewModel.isReviewReady)
           } else {
             Text("Review")
-              .hbPrimaryButton()
+              .hbPrimaryButton(isEnabled: viewModel.isReviewReady)
           }
         }
-        .disabled(viewModel.isProcessing)
+        .disabled(viewModel.isProcessing || !viewModel.isReviewReady)
         .padding(.horizontal, 24)
 
         if viewModel.hasAnyInput {
@@ -94,8 +87,10 @@ struct SendRecipientsView: View {
     }
     .sheet(isPresented: $viewModel.showAddressScanner) {
       AddressScannerSheet { scanned in
-        viewModel.parseBIP21(scanned, forRecipientAt: viewModel.scanTargetRecipientIndex)
+        let targetIndex = viewModel.scanTargetRecipientIndex
+        viewModel.parseBIP21(scanned, forRecipientAt: targetIndex)
         viewModel.showAddressScanner = false
+        viewModel.focusAmountIndex = targetIndex
       }
     }
     .sheet(isPresented: $viewModel.showUTXOPicker) {
@@ -113,6 +108,7 @@ private struct RecipientCard: View {
   @Bindable var viewModel: SendViewModel
   let index: Int
   @AppStorage(Constants.fiatEnabledKey) private var fiatEnabled = false
+  @FocusState private var isAmountFocused: Bool
 
   private var recipient: Recipient? {
     guard index < viewModel.recipients.count else { return nil }
@@ -146,8 +142,8 @@ private struct RecipientCard: View {
 
   private var cardContent: some View {
     VStack(spacing: 12) {
-      // Header with remove button and action buttons
-      HStack {
+      // Header with paste and remove buttons
+      HStack(spacing: 0) {
         Text("Recipient \(index + 1)")
           .font(.hbLabel())
           .foregroundStyle(Color.hbTextSecondary)
@@ -163,16 +159,11 @@ private struct RecipientCard: View {
             .font(.hbBody(13))
             .foregroundStyle(Color.hbSteelBlue)
         }
-
-        Button(action: {
-          viewModel.scanTargetRecipientIndex = index
-          viewModel.showAddressScanner = true
-        }) {
-          Label("Scan", systemImage: "qrcode.viewfinder")
-            .font(.hbBody(13))
-            .foregroundStyle(Color.hbBitcoinOrange)
-        }
-
+      }
+      // Trailing padding to align Paste right edge with address TextField right edge
+      // Scan button (44) + HStack spacing (8) = 52
+      .padding(.trailing, 52)
+      .overlay(alignment: .topTrailing) {
         if viewModel.recipients.count > 1 {
           Button(action: { viewModel.removeRecipient(at: index) }) {
             Image(systemName: "xmark.circle.fill")
@@ -182,24 +173,39 @@ private struct RecipientCard: View {
         }
       }
 
-      // Address
+      // Address + Scan
       VStack(alignment: .leading, spacing: 6) {
-        TextField("bc1q... or tb1q...", text: $viewModel.recipients[index].address)
-          .font(.hbMono(13))
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .padding(12)
-          .background(Color.hbSurfaceElevated)
-          .clipShape(RoundedRectangle(cornerRadius: 8))
-          .overlay(
-            RoundedRectangle(cornerRadius: 8)
-              .strokeBorder(
-                (addressHasError || addressFormatError)
-                  ? Color.hbError.opacity(0.8) : .clear,
-                lineWidth: 1.5
-              )
-          )
-          .foregroundStyle(Color.hbTextPrimary)
+        HStack(spacing: 8) {
+          TextField("\(viewModel.currentNetwork?.addressPrefix ?? "bc1")q...", text: $viewModel.recipients[index].address)
+            .font(.hbMono(13))
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .padding(12)
+            .background(Color.hbSurfaceElevated)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+              RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                  (addressHasError || addressFormatError)
+                    ? Color.hbError.opacity(0.8) : .clear,
+                  lineWidth: 1.5
+                )
+            )
+            .foregroundStyle(Color.hbTextPrimary)
+
+          Button(action: {
+            viewModel.scanTargetRecipientIndex = index
+            viewModel.showAddressScanner = true
+          }) {
+            Image(systemName: "qrcode.viewfinder")
+              .font(.system(size: 20))
+              .foregroundStyle(.white)
+              .frame(width: 44, height: 44)
+              .background(Color.hbBitcoinOrange)
+              .clipShape(RoundedRectangle(cornerRadius: 8))
+              .contentShape(Rectangle())
+          }
+        }
 
         if addressFormatError {
           let expected = viewModel.currentNetwork?.addressPrefix ?? "bc1/tb1"
@@ -235,6 +241,7 @@ private struct RecipientCard: View {
               TextField("0.00", text: fiatBinding(for: index))
                 .font(.hbMono(16))
                 .keyboardType(.decimalPad)
+                .focused($isAmountFocused)
                 .disabled(isMaxActive)
                 .foregroundStyle(isMaxActive ? Color.hbTextSecondary : Color.hbTextPrimary)
             }
@@ -252,6 +259,7 @@ private struct RecipientCard: View {
             TextField("0", text: $viewModel.recipients[index].amountSats)
               .font(.hbMono(16))
               .keyboardType(.numberPad)
+              .focused($isAmountFocused)
               .disabled(isMaxActive)
               .padding(12)
               .background(isMaxActive ? Color.hbSurfaceElevated.opacity(0.5) : Color.hbSurfaceElevated)
@@ -300,6 +308,12 @@ private struct RecipientCard: View {
     }
     .hbCard()
     .padding(.horizontal, 24)
+    .onChange(of: viewModel.focusAmountIndex) {
+      if viewModel.focusAmountIndex == index {
+        isAmountFocused = true
+        viewModel.focusAmountIndex = nil
+      }
+    }
   }
 
   @ViewBuilder

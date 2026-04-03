@@ -27,7 +27,7 @@ final class SendViewModel: PSBTFlowManaging {
   var selectedFeePreset: FeePreset = .medium
   var showAddressScanner: Bool = false
   var scanTargetRecipientIndex: Int = 0
-  var focusAmountIndex: Int? = nil
+  var focusAmountIndex: Int?
   var recommendedFees: BitcoinService.RecommendedFees?
 
   // UTXO selection

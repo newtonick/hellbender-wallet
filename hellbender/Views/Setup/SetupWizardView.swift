@@ -39,7 +39,9 @@ struct SetupWizardView: View {
                 onSave: viewModel.creationMode == .importDescriptor ? saveAndFinish : nil
               )
             case .review:
-              WalletReviewView(viewModel: viewModel, onComplete: saveAndFinish)
+              EmptyView() // unused in current flow
+            case .verify:
+              WalletVerifyView(viewModel: viewModel, onComplete: saveAndFinish)
             }
           }
           .frame(maxHeight: .infinity)

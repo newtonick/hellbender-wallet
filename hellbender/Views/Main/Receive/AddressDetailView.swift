@@ -26,9 +26,7 @@ struct AddressDetailView: View {
           .font(.hbLabel())
           .foregroundStyle(Color.hbTextSecondary)
 
-        Text(address)
-          .font(.hbMono(13))
-          .foregroundStyle(Color.hbTextPrimary)
+        address.chunkedAddressText()
           .multilineTextAlignment(.center)
           .padding(.horizontal, 32)
           .textSelection(.enabled)

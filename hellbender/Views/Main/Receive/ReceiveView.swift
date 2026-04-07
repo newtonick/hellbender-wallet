@@ -37,9 +37,7 @@ struct ReceiveView: View {
               .font(.hbLabel())
               .foregroundStyle(Color.hbTextSecondary)
 
-            Text(viewModel.currentAddress)
-              .font(.hbMono(13))
-              .foregroundStyle(Color.hbTextPrimary)
+            viewModel.currentAddress.chunkedAddressText()
               .multilineTextAlignment(.center)
               .padding(.horizontal, 32)
               .textSelection(.enabled)

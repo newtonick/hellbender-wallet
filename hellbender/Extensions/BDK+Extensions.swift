@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Denomination
 
@@ -56,6 +57,29 @@ extension String {
   func truncatedMiddle(leading: Int = 8, trailing: Int = 8) -> String {
     guard count > leading + trailing + 3 else { return self }
     return "\(prefix(leading))...\(suffix(trailing))"
+  }
+
+  /// Build a styled Text view with space-separated 4-character chunks,
+  /// alternating between primary and secondary text colors.
+  func chunkedAddressText(font: Font = .hbMono(13)) -> Text {
+    var chunks: [String] = []
+    var current = ""
+    for (i, char) in enumerated() {
+      if i > 0, i % 4 == 0 {
+        chunks.append(current)
+        current = ""
+      }
+      current.append(char)
+    }
+    if !current.isEmpty { chunks.append(current) }
+
+    var result = Text("")
+    for (i, chunk) in chunks.enumerated() {
+      if i > 0 { result = result + Text(" ") }
+      let color: Color = i % 2 == 0 ? .hbTextPrimary : .hbTextSecondary
+      result = result + Text(chunk).font(font).foregroundColor(color)
+    }
+    return result
   }
 }
 

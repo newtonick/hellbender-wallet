@@ -338,17 +338,11 @@ private struct PSBTReviewCard: View {
       ForEach(Array(viewModel.recipients.enumerated()), id: \.element.id) { index, recipient in
         if viewModel.recipients.count > 1 {
           ReviewItem(label: "Recipient \(index + 1)") {
-            Text(recipient.address)
-              .font(.hbMono(12))
-              .foregroundStyle(Color.hbTextPrimary)
-              .lineLimit(2)
+            recipient.address.chunkedAddressText(font: .hbMono(12))
           }
         } else {
           ReviewItem(label: "To") {
-            Text(recipient.address)
-              .font(.hbMono(12))
-              .foregroundStyle(Color.hbTextPrimary)
-              .lineLimit(2)
+            recipient.address.chunkedAddressText(font: .hbMono(12))
           }
         }
 

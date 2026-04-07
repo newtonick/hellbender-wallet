@@ -14,6 +14,7 @@ final class SetupWizardViewModel {
     case descriptorImport
     case walletName
     case review
+    case verify
   }
 
   enum CreationMode {
@@ -45,6 +46,10 @@ final class SetupWizardViewModel {
   // Computed descriptors
   var externalDescriptor: String = ""
   var internalDescriptor: String = ""
+
+  // Verification step
+  var firstReceiveAddress: String = ""
+  var addressDerivationError: String?
 
   // Electrum server
   var electrumHost: String = ""
@@ -91,7 +96,7 @@ final class SetupWizardViewModel {
 
   /// Progress
   var stepCount: Int {
-    creationMode == .createNew ? 5 : 3
+    creationMode == .createNew ? 6 : 3
   }
 
   var currentStepIndex: Int {
@@ -103,6 +108,7 @@ final class SetupWizardViewModel {
     case .descriptorImport: 2
     case .walletName: creationMode == .createNew ? 4 : 3
     case .review: stepCount - 1
+    case .verify: stepCount - 1
     }
   }
 
@@ -215,6 +221,38 @@ final class SetupWizardViewModel {
 
     externalDescriptor = "wsh(sortedmulti(\(requiredSignatures),\(externalKeys)))"
     internalDescriptor = "wsh(sortedmulti(\(requiredSignatures),\(internalKeys)))"
+  }
+
+  var combinedDescriptor: String {
+    let cosignerData = (0 ..< totalCosigners).map {
+      (xpub: cosignerXpubs[$0], fingerprint: cosignerFingerprints[$0], derivationPath: cosignerDerivationPaths[$0])
+    }
+    return BitcoinService.buildCombinedDescriptor(
+      requiredSignatures: requiredSignatures,
+      cosigners: cosignerData,
+      network: network
+    )
+  }
+
+  func deriveFirstAddress() {
+    let bdkNetwork = BitcoinService.shared.bdkNetwork(from: network)
+    do {
+      let extDesc = try Descriptor(descriptor: externalDescriptor, network: bdkNetwork)
+      let chgDesc = try Descriptor(descriptor: internalDescriptor, network: bdkNetwork)
+      let persister = try Persister.newInMemory()
+      let tempWallet = try Wallet(
+        descriptor: extDesc,
+        changeDescriptor: chgDesc,
+        network: bdkNetwork,
+        persister: persister
+      )
+      let info = tempWallet.peekAddress(keychain: .external, index: 0)
+      firstReceiveAddress = info.address.description
+      addressDerivationError = nil
+    } catch {
+      addressDerivationError = "Failed to derive address: \(error.localizedDescription)"
+      firstReceiveAddress = ""
+    }
   }
 
   func parseImportedDescriptor() -> Bool {
@@ -392,8 +430,11 @@ final class SetupWizardViewModel {
       }
       currentStep = .walletName
     case .walletName:
-      currentStep = .review
+      deriveFirstAddress()
+      currentStep = .verify
     case .review:
+      break // unused in current flow
+    case .verify:
       break // handled by saveWallet
     }
   }
@@ -411,6 +452,7 @@ final class SetupWizardViewModel {
       }
     // Import flow: back button is hidden, wallet already created
     case .review: currentStep = .walletName
+    case .verify: currentStep = .walletName
     }
   }
 

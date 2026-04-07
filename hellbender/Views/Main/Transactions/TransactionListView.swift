@@ -332,7 +332,6 @@ struct TransactionListView: View {
         transactionContent
       }
       .background(Color.hbBackground)
-      .overlay { walletPickerOverlay }
       .navigationTitle("")
       .onDisappear {
         walletPickerEditMode = false
@@ -341,6 +340,7 @@ struct TransactionListView: View {
       .refreshable {
         await viewModel.refresh()
       }
+      .overlay { walletPickerOverlay }
       .sheet(isPresented: $showConnectionStatus) {
         ConnectionStatusView()
       }
@@ -548,69 +548,76 @@ struct TransactionListView: View {
           Divider()
             .background(Color.hbBorder)
 
-          ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
-            HStack(spacing: 12) {
-              if walletPickerEditMode {
-                Image(systemName: "minus.circle.fill")
-                  .font(.system(size: 20))
-                  .foregroundStyle(Color.hbError)
-                  .onTapGesture {
-                    walletToDelete = wallet
+          ScrollView {
+            LazyVStack(spacing: 0) {
+              ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
+                HStack(spacing: 12) {
+                  if walletPickerEditMode {
+                    Image(systemName: "minus.circle.fill")
+                      .font(.system(size: 20))
+                      .foregroundStyle(Color.hbError)
+                      .onTapGesture {
+                        walletToDelete = wallet
+                      }
                   }
-              }
 
-              WalletIdenticon(id: wallet.id)
-                .frame(width: 32, height: 32)
-                .overlay(
-                  RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(Color.hbBitcoinOrange, lineWidth: wallet.isActive ? 2 : 0)
-                )
-              VStack(spacing: 4) {
-                NetworkBadge(network: wallet.bitcoinNetwork)
-                Text(wallet.multisigDescription)
-                  .font(.hbLabel())
-                  .foregroundStyle(Color.hbTextSecondary)
-              }
-              .fixedSize()
-              Text(wallet.name)
-                .font(.hbBody())
-                .foregroundStyle(Color.hbTextPrimary)
-              Spacer()
+                  WalletIdenticon(id: wallet.id)
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                      RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color.hbBitcoinOrange, lineWidth: wallet.isActive ? 2 : 0)
+                    )
+                  VStack(spacing: 4) {
+                    NetworkBadge(network: wallet.bitcoinNetwork)
+                    Text(wallet.multisigDescription)
+                      .font(.hbLabel())
+                      .foregroundStyle(Color.hbTextSecondary)
+                  }
+                  .fixedSize()
+                  Text(wallet.name)
+                    .font(.hbBody())
+                    .foregroundStyle(Color.hbTextPrimary)
+                  Spacer()
 
-              if walletPickerEditMode {
-                Image(systemName: "chevron.right")
-                  .font(.system(size: 14, weight: .semibold))
-                  .foregroundStyle(Color.hbTextSecondary)
-              }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 15)
-            .background(wallet.isActive ? Color.hbBitcoinOrange.opacity(0.08) : Color.clear)
-            .contentShape(Rectangle())
-            .onTapGesture {
-              if walletPickerEditMode {
-                walletToEdit = wallet
-                walletPickerEditMode = false
-                withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
-                showWalletInfo = true
-              } else {
-                guard !wallet.isActive else {
-                  withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
-                  return
+                  if walletPickerEditMode {
+                    Image(systemName: "chevron.right")
+                      .font(.system(size: 14, weight: .semibold))
+                      .foregroundStyle(Color.hbTextSecondary)
+                  }
                 }
-                viewModel.clearState()
-                walletManager.setActiveWallet(wallet, allWallets: wallets, modelContext: modelContext)
-                withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 15)
+                .background(wallet.isActive ? Color.hbBitcoinOrange.opacity(0.08) : Color.clear)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                  if walletPickerEditMode {
+                    walletToEdit = wallet
+                    walletPickerEditMode = false
+                    withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
+                    showWalletInfo = true
+                  } else {
+                    guard !wallet.isActive else {
+                      withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
+                      return
+                    }
+                    viewModel.clearState()
+                    walletManager.setActiveWallet(wallet, allWallets: wallets, modelContext: modelContext)
+                    withAnimation(.spring(duration: 0.25, bounce: 0.15)) { showWalletPicker = false }
+                  }
+                }
+                .onLongPressGesture {
+                  walletPickerEditMode = true
+                }
+                if index < wallets.count - 1 {
+                  Divider()
+                    .background(Color.hbBorder)
+                }
               }
-            }
-            .onLongPressGesture {
-              walletPickerEditMode = true
-            }
-            if index < wallets.count - 1 {
-              Divider()
-                .background(Color.hbBorder)
             }
           }
+          .scrollBounceBehavior(.basedOnSize)
+          .scrollIndicators(.visible)
+          .frame(maxHeight: 310)
         }
         .background(Color.hbSurfaceElevated)
         .clipShape(RoundedRectangle(cornerRadius: 12))

@@ -162,9 +162,7 @@ struct WalletVerifyView: View {
               .clipShape(RoundedRectangle(cornerRadius: 8))
               .frame(maxWidth: .infinity)
 
-            Text(viewModel.firstReceiveAddress)
-              .font(.hbMono(12))
-              .foregroundStyle(Color.hbTextPrimary)
+            viewModel.firstReceiveAddress.chunkedAddressText(font: .hbMono(12))
               .multilineTextAlignment(.center)
               .frame(maxWidth: .infinity)
               .textSelection(.enabled)

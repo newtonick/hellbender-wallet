@@ -110,9 +110,7 @@ struct UTXODetailView: View {
                       .font(.hbMono(12))
                       .foregroundStyle(Color.hbTextPrimary)
                   } else {
-                    Text(address)
-                      .font(.hbMono(12))
-                      .foregroundStyle(Color.hbTextPrimary)
+                    address.chunkedAddressText(font: .hbMono(12))
                       .textSelection(.enabled)
                   }
                 }

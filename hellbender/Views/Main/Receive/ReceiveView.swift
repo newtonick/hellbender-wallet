@@ -39,6 +39,7 @@ struct ReceiveView: View {
 
             viewModel.currentAddress.chunkedAddressText()
               .multilineTextAlignment(.center)
+              .fixedSize(horizontal: false, vertical: true)
               .padding(.horizontal, 32)
               .textSelection(.enabled)
 

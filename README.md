@@ -38,7 +38,7 @@ Hellbender is an iOS Bitcoin multisig coordinator written in Swift. It operates 
 
 ### Requirements
 
-- Xcode 16.2+
+- Xcode 26.2+
 - iOS 18.6+ deployment target
 - Swift 5.0
 
@@ -80,7 +80,7 @@ Hellbender supports **functionally equivalent** reproducible builds. Given the s
 
 #### Prerequisites
 
-- Exact Xcode version matching `.xcode-version` (currently 16.2)
+- Exact Xcode version matching `.xcode-version` (currently 26.4)
 - macOS with the matching SDK
 
 #### Producing a verifiable build

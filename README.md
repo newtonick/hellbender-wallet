@@ -64,9 +64,45 @@ All dependencies are managed via Swift Package Manager and resolve automatically
 3. SPM dependencies resolve automatically on first open
 4. Build and run on a simulator or device
 
+For reproducible release builds, see [Reproducible Builds](#reproducible-builds) below.
+
 ### CI
 
-GitHub Actions runs `xcodebuild clean build analyze` on every push and pull request to `main`.
+GitHub Actions runs `xcodebuild clean build analyze` on every push and pull request to `main`. A separate [reproducibility verification workflow](.github/workflows/reproducible-build-check.yml) builds the project twice, normalizes both outputs, and compares them to catch non-determinism regressions.
+
+### Reproducible Builds
+
+Hellbender supports **functionally equivalent** reproducible builds. Given the same source code and Xcode version, two independent builds will produce the same compiled logic after normalization. Certain metadata bytes (Mach-O UUIDs, timestamps, build-machine identifiers) are expected to differ and are zeroed by the normalization step.
+
+**What IS reproducible** (after normalization): all code-bearing sections, resources, and application logic.
+
+**What is NOT reproducible**: code signing timestamps, Mach-O LC_UUID values, Xcode build-machine metadata, App Store .ipa files (Apple re-signs and applies FairPlay DRM).
+
+#### Prerequisites
+
+- Exact Xcode version matching `.xcode-version` (currently 16.2)
+- macOS with the matching SDK
+
+#### Producing a verifiable build
+
+```bash
+./scripts/build-release.sh
+```
+
+This creates an unsigned archive at `/tmp/hellbender-build/hellbender.xcarchive`.
+
+#### Verifying two builds
+
+```bash
+# Normalize both builds
+./scripts/normalize-app.sh /path/to/build1.app
+./scripts/normalize-app.sh /path/to/build2.app
+
+# Compare
+./scripts/compare-builds.sh /path/to/build1.app /path/to/build2.app
+```
+
+The comparison exits 0 if the builds are functionally equivalent, 1 if code differences are found.
 
 ## Links
 

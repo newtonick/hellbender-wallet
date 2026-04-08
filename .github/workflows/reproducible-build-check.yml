@@ -1,0 +1,63 @@
+name: Reproducible Build Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  reproducibility:
+    name: Verify build reproducibility
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Pin Xcode version
+        run: |
+          XCODE_VERSION=$(cat .xcode-version)
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Build 1
+        run: |
+          DERIVED_DATA="/tmp/hellbender-build-1"
+          rm -rf "$DERIVED_DATA"
+          xcodebuild archive \
+            -scheme hellbender \
+            -project hellbender.xcodeproj \
+            -archivePath "$DERIVED_DATA/hellbender.xcarchive" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | xcpretty && exit ${PIPESTATUS[0]}
+
+      - name: Build 2
+        run: |
+          DERIVED_DATA="/tmp/hellbender-build-2"
+          rm -rf "$DERIVED_DATA"
+          xcodebuild archive \
+            -scheme hellbender \
+            -project hellbender.xcodeproj \
+            -archivePath "$DERIVED_DATA/hellbender.xcarchive" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | xcpretty && exit ${PIPESTATUS[0]}
+
+      - name: Normalize both builds
+        run: |
+          APP1="/tmp/hellbender-build-1/hellbender.xcarchive/Products/Applications/hellbender.app"
+          APP2="/tmp/hellbender-build-2/hellbender.xcarchive/Products/Applications/hellbender.app"
+          ./scripts/normalize-app.sh "$APP1"
+          ./scripts/normalize-app.sh "$APP2"
+
+      - name: Compare builds
+        run: |
+          APP1="/tmp/hellbender-build-1/hellbender.xcarchive/Products/Applications/hellbender.app"
+          APP2="/tmp/hellbender-build-2/hellbender.xcarchive/Products/Applications/hellbender.app"
+          ./scripts/compare-builds.sh "$APP1" "$APP2"

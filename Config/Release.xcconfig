@@ -1,0 +1,13 @@
+// Release.xcconfig — Release-specific build settings + reproducibility
+#include "Base.xcconfig"
+
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ENABLE_NS_ASSERTIONS = NO
+ENABLE_PREVIEWS = NO
+MTL_ENABLE_DEBUG_INFO = NO
+SWIFT_COMPILATION_MODE = wholemodule
+VALIDATE_PRODUCT = YES
+
+// Reproducibility: remap absolute paths in debug info
+OTHER_SWIFT_FLAGS = $(inherited) -debug-prefix-map $(SRCROOT)=. -debug-prefix-map $(HOME)=~
+OTHER_CFLAGS = $(inherited) -fdebug-prefix-map=$(SRCROOT)=. -fdebug-prefix-map=$(HOME)=~

@@ -14,7 +14,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      
+
+      - name: Pin Xcode version
+        run: |
+          XCODE_VERSION=$(cat .xcode-version)
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -project hellbender.xcodeproj -scheme hellbender
+
+      - name: Validate Package.resolved
+        run: |
+          if ! git diff --quiet hellbender.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved; then
+            echo "::error::Package.resolved has uncommitted changes after resolution. Commit the updated Package.resolved."
+            git diff hellbender.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+            exit 1
+          fi
+
       - name: Build
         env:
           scheme: hellbender

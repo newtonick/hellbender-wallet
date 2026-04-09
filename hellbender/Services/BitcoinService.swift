@@ -690,7 +690,8 @@ final class BitcoinService {
         vout: output.outpoint.vout,
         amount: output.txout.value.toSat(),
         isConfirmed: confirmed,
-        keychain: output.keychain == .external ? .external : .internal
+        keychain: output.keychain == .external ? .external : .internal,
+        derivationIndex: output.derivationIndex
       )
     }.sorted { u0, u1 in
       let isUnconfirmed0 = !u0.isConfirmed

@@ -154,6 +154,11 @@ struct UTXODetailView: View {
 
           DetailRow(label: "Amount", value: isPrivate ? Constants.privacyText() : utxo.amount.formattedSats)
 
+          DetailRow(
+            label: utxo.keychain == .external ? "Receive Address Index" : "Change Address Index",
+            value: "\(utxo.derivationIndex)"
+          )
+
           DetailRow(label: "Output Index", value: "\(utxo.vout)")
 
           DetailRow(label: "Type", value: utxo.keychain == .external ? "Receive" : "Change")
@@ -170,7 +175,7 @@ struct UTXODetailView: View {
             }
 
             DetailRow(label: "Confirmations",
-                      value: tx.confirmations >= 6 ? "6+" : "\(tx.confirmations)")
+                      value: "\(tx.confirmations)")
           }
         }
         .hbCard()

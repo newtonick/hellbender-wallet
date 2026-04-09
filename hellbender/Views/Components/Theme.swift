@@ -14,6 +14,7 @@ struct HBTheme {
   var heroBackground: Color
   var success: Color
   var error: Color
+  var secondaryAccent: Color
   var colorScheme: ColorScheme? = .dark
 
   static let system = HBTheme(
@@ -27,6 +28,7 @@ struct HBTheme {
     heroBackground: Color(.tertiarySystemBackground),
     success: Color(.systemGreen),
     error: Color(.systemRed),
+    secondaryAccent: Color(.systemBlue),
     colorScheme: nil
   )
 
@@ -41,6 +43,7 @@ struct HBTheme {
     heroBackground: Color(red: 0.110, green: 0.110, blue: 0.141),
     success: Color(red: 0.176, green: 0.545, blue: 0.341),
     error: Color(red: 0.851, green: 0.267, blue: 0.267),
+    secondaryAccent: Color(red: 0.290, green: 0.565, blue: 0.851),
     colorScheme: .dark
   )
 
@@ -55,6 +58,37 @@ struct HBTheme {
     heroBackground: Color(red: 0.930, green: 0.930, blue: 0.945),
     success: Color(red: 0.204, green: 0.780, blue: 0.349),
     error: Color(red: 1.000, green: 0.231, blue: 0.188),
+    secondaryAccent: Color(red: 0.290, green: 0.565, blue: 0.851),
+    colorScheme: .light
+  )
+
+  static let birchDark = HBTheme(
+    background: Color(red: 0.102, green: 0.094, blue: 0.078),
+    surface: Color(red: 0.141, green: 0.125, blue: 0.094),
+    surfaceElevated: Color(red: 0.180, green: 0.157, blue: 0.125),
+    border: Color(red: 0.239, green: 0.208, blue: 0.188),
+    textPrimary: Color(red: 0.929, green: 0.910, blue: 0.875),
+    textSecondary: Color(red: 0.659, green: 0.620, blue: 0.573),
+    accent: Color(red: 0.831, green: 0.659, blue: 0.208),
+    heroBackground: Color(red: 0.141, green: 0.125, blue: 0.094),
+    success: Color(red: 0.416, green: 0.478, blue: 0.322),
+    error: Color(red: 0.690, green: 0.235, blue: 0.157),
+    secondaryAccent: Color(red: 0.416, green: 0.478, blue: 0.322),
+    colorScheme: .dark
+  )
+
+  static let birchLight = HBTheme(
+    background: Color(red: 0.929, green: 0.910, blue: 0.875),
+    surface: Color(red: 0.851, green: 0.824, blue: 0.773),
+    surfaceElevated: Color(red: 0.929, green: 0.910, blue: 0.875),
+    border: Color(red: 0.769, green: 0.741, blue: 0.690),
+    textPrimary: Color(red: 0.165, green: 0.145, blue: 0.125),
+    textSecondary: Color(red: 0.420, green: 0.380, blue: 0.345),
+    accent: Color(red: 0.769, green: 0.584, blue: 0.165),
+    heroBackground: Color(red: 0.851, green: 0.824, blue: 0.773),
+    success: Color(red: 0.353, green: 0.400, blue: 0.259),
+    error: Color(red: 0.549, green: 0.188, blue: 0.125),
+    secondaryAccent: Color(red: 0.353, green: 0.400, blue: 0.259),
     colorScheme: .light
   )
 }
@@ -65,12 +99,16 @@ enum AppTheme: String, CaseIterable {
   case system
   case dark
   case light
+  case birchDark
+  case birchLight
 
   var displayName: String {
     switch self {
     case .system: "System"
     case .dark: "Dark"
     case .light: "Light"
+    case .birchDark: "Birch Dark"
+    case .birchLight: "Birch Light"
     }
   }
 
@@ -79,6 +117,8 @@ enum AppTheme: String, CaseIterable {
     case .system: .system
     case .dark: .dark
     case .light: .light
+    case .birchDark: .birchDark
+    case .birchLight: .birchLight
     }
   }
 }
@@ -137,7 +177,9 @@ extension Color {
     ThemeManager.shared.theme.accent
   }
 
-  static let hbSteelBlue = Color(red: 0.290, green: 0.565, blue: 0.851) // #4A90D9 — not themed
+  static var hbSteelBlue: Color {
+    ThemeManager.shared.theme.secondaryAccent
+  }
 
   /// Semantic
   static var hbSuccess: Color {

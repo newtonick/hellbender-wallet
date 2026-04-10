@@ -6,6 +6,7 @@ struct UTXOItem: Identifiable, Equatable {
   let amount: UInt64 // sats
   let isConfirmed: Bool
   let keychain: KeychainKind
+  let derivationIndex: UInt32
 
   var id: String {
     "\(txid):\(vout)"

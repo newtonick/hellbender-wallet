@@ -223,7 +223,7 @@ struct LabelServiceExportTests {
       id: "txutxo1", amount: 3000,
       outputs: [TransactionItem.TxIO(address: "tb1qutxo", amount: 3000, prevTxid: nil, prevVout: nil, isMine: true)]
     )
-    let utxo = UTXOItem(txid: "txutxo1", vout: 0, amount: 3000, isConfirmed: true, keychain: .external)
+    let utxo = UTXOItem(txid: "txutxo1", vout: 0, amount: 3000, isConfirmed: true, keychain: .external, derivationIndex: 0)
     let records = Self.buildRecords(transactions: [tx], utxos: [utxo])
     let outputRecord = try #require(records.first { $0.type == "output" })
     #expect(outputRecord.spendable == true)
@@ -236,7 +236,7 @@ struct LabelServiceExportTests {
       id: "txfrozen", amount: 4000,
       outputs: [TransactionItem.TxIO(address: "tb1qfrozen", amount: 4000, prevTxid: nil, prevVout: nil, isMine: true)]
     )
-    let utxo = UTXOItem(txid: "txfrozen", vout: 0, amount: 4000, isConfirmed: true, keychain: .external)
+    let utxo = UTXOItem(txid: "txfrozen", vout: 0, amount: 4000, isConfirmed: true, keychain: .external, derivationIndex: 0)
     let records = Self.buildRecords(transactions: [tx], utxos: [utxo], frozenOutpoints: ["txfrozen:0"])
     let outputRecord = try #require(records.first { $0.type == "output" })
     #expect(outputRecord.spendable == false)
@@ -279,7 +279,7 @@ struct LabelServiceExportTests {
       id: "txjsonl", amount: 1000,
       outputs: [TransactionItem.TxIO(address: "tb1qjsonl", amount: 1000, prevTxid: nil, prevVout: nil, isMine: true)]
     )
-    let utxo = UTXOItem(txid: "txjsonl", vout: 0, amount: 1000, isConfirmed: true, keychain: .external)
+    let utxo = UTXOItem(txid: "txjsonl", vout: 0, amount: 1000, isConfirmed: true, keychain: .external, derivationIndex: 0)
     let records = Self.buildRecords(transactions: [tx], utxos: [utxo])
     let data = BIP329Record.encodeToJSONL(records)
     let text = try #require(String(data: data, encoding: .utf8))

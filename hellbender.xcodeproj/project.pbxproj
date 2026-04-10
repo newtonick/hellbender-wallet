@@ -42,7 +42,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		CC0000010000000000000006 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		CC0000010000000000000006 /* Exceptions for "hellbender" folder in "hellbender" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -55,7 +55,7 @@
 		3C9ACE262F5DED94009B00D0 /* hellbender */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				CC0000010000000000000006 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				CC0000010000000000000006 /* Exceptions for "hellbender" folder in "hellbender" target */,
 			);
 			path = hellbender;
 			sourceTree = "<group>";
@@ -340,6 +340,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CC0000010000000000000004 /* Hellbender.xcconfig */;
 			buildSettings = {
+				CURRENT_PROJECT_VERSION = 24;
 			};
 			name = Debug;
 		};
@@ -347,6 +348,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CC0000010000000000000004 /* Hellbender.xcconfig */;
 			buildSettings = {
+				CURRENT_PROJECT_VERSION = 24;
 			};
 			name = Release;
 		};

@@ -198,7 +198,7 @@ struct WalletVerifyView: View {
       .padding(.top, 16)
     }
     .sheet(isPresented: $showDescriptorQR) {
-      DescriptorQRSheet(descriptor: viewModel.combinedDescriptor)
+      DescriptorQRSheet(descriptor: viewModel.combinedDescriptor, walletName: viewModel.walletName.isEmpty ? "My Wallet" : viewModel.walletName)
     }
     .sheet(isPresented: $showDescriptorPDF) {
       DescriptorPDFView(
@@ -230,11 +230,15 @@ private struct ReviewRow: View {
 
 private struct DescriptorQRSheet: View {
   let descriptor: String
+  let walletName: String
   let descriptorUR: UR?
   @Environment(\.dismiss) private var dismiss
+  @State private var isExporting = false
+  @AppStorage(Constants.qrFrameRateKey) private var qrFrameRate: Double = 4.0
 
-  init(descriptor: String) {
+  init(descriptor: String, walletName: String) {
     self.descriptor = descriptor
+    self.walletName = walletName
     descriptorUR = try? URService.encodeCryptoOutput(descriptor: descriptor)
   }
 
@@ -260,13 +264,22 @@ private struct DescriptorQRSheet: View {
             .foregroundStyle(Color.hbTextSecondary)
             .multilineTextAlignment(.center)
 
-          Button(action: {
-            UIPasteboard.general.string = descriptor
-          }) {
-            Label("Copy Descriptor", systemImage: "doc.on.doc")
-              .font(.hbBody(14))
-              .foregroundStyle(Color.hbSteelBlue)
+          Button(action: { exportAsMP4() }) {
+            if isExporting {
+              HStack(spacing: 8) {
+                ProgressView()
+                  .tint(Color.hbSteelBlue)
+                Text("Generating video...")
+                  .font(.hbBody(14))
+                  .foregroundStyle(Color.hbSteelBlue)
+              }
+            } else {
+              Label("Export Descriptor as MP4", systemImage: "film")
+                .font(.hbBody(14))
+                .foregroundStyle(Color.hbSteelBlue)
+            }
           }
+          .disabled(isExporting || descriptorUR == nil)
         }
         .padding(.top, 8)
       }
@@ -279,6 +292,47 @@ private struct DescriptorQRSheet: View {
         }
       }
     }
+  }
+
+  private func exportAsMP4() {
+    guard let ur = descriptorUR else { return }
+    isExporting = true
+    Task {
+      do {
+        let url = try await QRVideoExporter.exportMP4(
+          ur: ur,
+          fileName: "\(walletName) Output Descriptor",
+          maxFragmentLen: 160,
+          fps: qrFrameRate,
+          loopCount: 3
+        )
+        await MainActor.run {
+          isExporting = false
+          presentShareSheet(url: url)
+        }
+      } catch {
+        await MainActor.run {
+          isExporting = false
+        }
+      }
+    }
+  }
+
+  private func presentShareSheet(url: URL) {
+    let activityVC = UIActivityViewController(
+      activityItems: [url],
+      applicationActivities: nil
+    )
+    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+          var topVC = windowScene.windows.first?.rootViewController else { return }
+    while let presented = topVC.presentedViewController {
+      topVC = presented
+    }
+    if let popover = activityVC.popoverPresentationController {
+      popover.sourceView = topVC.view
+      popover.sourceRect = CGRect(x: topVC.view.bounds.midX, y: 0, width: 0, height: 0)
+    }
+    topVC.present(activityVC, animated: true)
   }
 }
 

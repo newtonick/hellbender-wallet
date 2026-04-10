@@ -126,7 +126,7 @@ enum DescriptorPDFGenerator {
     let context = CIContext()
     let filter = CIFilter.qrCodeGenerator()
     filter.message = Data(string.utf8)
-    filter.correctionLevel = "M"
+    filter.correctionLevel = "L"
 
     guard let outputImage = filter.outputImage else { return nil }
 

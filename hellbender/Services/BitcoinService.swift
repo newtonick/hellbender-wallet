@@ -1343,7 +1343,7 @@ final class BitcoinService {
     return "wsh(sortedmulti(\(requiredSignatures),\(keys)))"
   }
 
-  /// Build a combined output descriptor with <0;1>/* multipath notation
+  /// Build a combined output descriptor with <0;1>/* multipath notation and BIP-380 checksum
   static func buildCombinedDescriptor(
     requiredSignatures: Int,
     cosigners: [(xpub: String, fingerprint: String, derivationPath: String)],
@@ -1357,7 +1357,55 @@ final class BitcoinService {
       return "[\(cosigner.fingerprint)/48'/\(coinType)'/0'/2']\(xpub)/<0;1>/*"
     }.joined(separator: ",")
 
-    return "wsh(sortedmulti(\(requiredSignatures),\(keys)))"
+    let raw = "wsh(sortedmulti(\(requiredSignatures),\(keys)))"
+
+    return raw + "#" + descriptorChecksum(raw)
+  }
+
+  /// Compute the BIP-380 descriptor checksum (8-character string)
+  /// Reference: https://github.com/bitcoin/bitcoin/blob/master/src/script/descriptor.cpp
+  static func descriptorChecksum(_ descriptor: String) -> String {
+    let inputCharset = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#\"\\ "
+    let checksumCharset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+    var c: UInt64 = 1
+    var cls = 0
+    var clsCount = 0
+
+    func polyMod(_ c: inout UInt64, _ val: Int) {
+      let c0 = Int(c >> 35)
+      c = ((c & 0x7_FFFF_FFFF) << 5) ^ UInt64(val)
+      if c0 & 1 != 0 { c ^= 0xF5_DEE5_1989 }
+      if c0 & 2 != 0 { c ^= 0xA9_FDCA_3312 }
+      if c0 & 4 != 0 { c ^= 0x1B_AB10_E32D }
+      if c0 & 8 != 0 { c ^= 0x37_06B1_677A }
+      if c0 & 16 != 0 { c ^= 0x64_4D62_6FFD }
+    }
+
+    for ch in descriptor {
+      guard let pos = inputCharset.firstIndex(of: ch) else {
+        return ""
+      }
+      let idx = inputCharset.distance(from: inputCharset.startIndex, to: pos)
+      polyMod(&c, idx & 31)
+      cls = cls * 3 + (idx >> 5)
+      clsCount += 1
+      if clsCount == 3 {
+        polyMod(&c, cls)
+        cls = 0
+        clsCount = 0
+      }
+    }
+    if clsCount > 0 { polyMod(&c, cls) }
+    (0 ..< 8).forEach { _ in polyMod(&c, 0) }
+    c ^= 1
+
+    let checksumArray = Array(checksumCharset)
+    var result = ""
+    for j in 0 ..< 8 {
+      result.append(checksumArray[Int((c >> (5 * (7 - j))) & 31)])
+    }
+    return result
   }
 
   // MARK: - Helpers

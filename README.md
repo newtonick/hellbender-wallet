@@ -104,6 +104,81 @@ This creates an unsigned archive at `/tmp/hellbender-build/hellbender.xcarchive`
 
 The comparison exits 0 if the builds are functionally equivalent, 1 if code differences are found.
 
+## Generating Screenshots
+
+Hellbender uses [`fastlane snapshot`](https://docs.fastlane.tools/actions/snapshot/) to generate marketing and App Store screenshots. A single UI test walks the app from Welcome through the main tabs, capturing every major screen on each configured device in both dark and light mode.
+
+### One-time setup
+
+1. Install [Bundler](https://bundler.io/) if you don't already have it:
+   ```bash
+   gem install bundler
+   ```
+2. Install fastlane via the project `Gemfile`:
+   ```bash
+   bundle install
+   ```
+3. Install [ImageMagick](https://imagemagick.org/) — used to composite iPhone 13 mini screenshots onto their bezel (frameit's bundled 13 mini frame has a pixel-misalignment bug that leaves a visible gap, so we bypass frameit for that device):
+   ```bash
+   brew install imagemagick
+   ```
+4. Make sure the required simulators are downloaded. The screenshot lane targets:
+   - **iPhone 17 Pro Max** (6.9")
+   - **iPhone 11 Pro Max** (6.5")
+   - **iPhone 13 mini** (5.4")
+
+   You can trigger a download by booting them once in Xcode (**Window → Devices and Simulators → Simulators → +**) or via the command line:
+   ```bash
+   xcrun simctl list devices | grep -E "iPhone 17 Pro Max|iPhone 11 Pro Max|iPhone 13 mini"
+   ```
+
+### Running
+
+From the repo root:
+
+```bash
+bundle exec fastlane screenshots
+```
+
+This runs the `screenshots` lane defined in [`fastlane/Fastfile`](fastlane/Fastfile), which:
+
+1. Captures all 12 stops in **dark mode** first (the product's default aesthetic)
+2. Captures the same stops in **light mode**
+3. Moves iPhone 13 mini bare captures aside, and rescales/renames iPhone 17 Pro Max captures to masquerade as iPhone 14 Pro Max (1290×2796) so `frameit`'s hardcoded device list accepts them
+4. Runs `frameit` to frame iPhone 11 Pro Max (native) and iPhone 17 Pro Max (via the masquerade)
+5. Restores real device names and moves every `*_framed.png` into a sibling `framed/` subfolder
+6. Composites iPhone 13 mini captures onto the bezel directly with ImageMagick (upscaling to 1086×2353 so the screenshot fully covers the frame's screen hole) and writes the result into the same `framed/` directory
+
+Output lands in:
+
+```
+fastlane/screenshots/
+├── dark/
+│   ├── en-US/
+│   │   ├── iPhone 17 Pro Max-01-Welcome.png
+│   │   └── ...
+│   └── framed/
+│       ├── iPhone 17 Pro Max-01-Welcome_framed.png
+│       └── ...
+└── light/
+    └── ...
+```
+
+### How it works
+
+- [`hellbenderUITests/ScreenshotTests.swift`](hellbenderUITests/ScreenshotTests.swift) is a dedicated XCUITest that walks the app. It reuses the existing `-UITesting` launch argument (defined in `hellbender/hellbenderApp.swift`), which wipes `UserDefaults`/keychain and uses an in-memory SwiftData store so every run starts from a deterministic Welcome screen.
+- The test imports a real testnet4 1-of-2 `wsh(sortedmulti(...))` descriptor with live history, waits for Electrum sync, then visits each screen.
+- Dark/light mode is driven by the simulator's OS appearance (`xcrun simctl ui ... appearance`). The app's `RootView` follows the OS when the theme is set to `.system`, which it is by default after the `-UITesting` wipe, so no app-side toggle is required.
+- The device matrix, scheme, status bar override, and other `snapshot` options live in [`fastlane/Snapfile`](fastlane/Snapfile). Device destinations (simulator OS version), the frameit pass, and the custom 13 mini ImageMagick composite all live in [`fastlane/Fastfile`](fastlane/Fastfile).
+
+### Customizing
+
+- **Add/remove devices:** edit both the `devices([...])` array in `fastlane/Snapfile` and the `DEVICES` hash in `fastlane/Fastfile`.
+- **Change which screens are captured:** edit `testScreenshotTour` in `hellbenderUITests/ScreenshotTests.swift` and add or remove `snapshot("NN-Name")` calls.
+- **Skip framing:** remove the `frameit(...)` lines and the ImageMagick composite block (steps 4–7) from `fastlane/Fastfile` if you only need the bare PNGs.
+
+> **Known workarounds** (all contained in `fastlane/Fastfile`): `frameit` gem 2.232.2 hardcodes its supported device list and stops at iPhone 14 Pro Max, so iPhone 17 Pro Max captures are rescaled to 1290×2796 and renamed to masquerade as iPhone 14 Pro Max (~2.3% squish, visually indistinguishable). The bundled iPhone 13 Mini frame PNG also has a ~3-pixel placement-offset bug that leaves a visible edge gap — so 13 mini is composited directly with ImageMagick instead. Both steps become no-ops once fastlane ships native support / fixes the frame art.
+
 ## Links
 
 - **Website**: [hellbenderwallet.com](https://hellbenderwallet.com)

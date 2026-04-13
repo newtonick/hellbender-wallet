@@ -231,6 +231,7 @@ struct TransactionListView: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
             }
+            .accessibilityIdentifier("walletMenu")
 
             Spacer()
 
@@ -255,6 +256,7 @@ struct TransactionListView: View {
                   .strokeBorder(Color.hbBorder, lineWidth: 1)
               )
             }
+            .accessibilityIdentifier("walletPicker")
 
             Spacer()
 

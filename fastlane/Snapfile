@@ -1,0 +1,51 @@
+# Devices to capture — full App Store iPhone set.
+# iPad deferred until iPad support ships.
+devices([
+  "iPhone 17 Pro Max",
+  "iPhone 17 Pro",
+  "iPhone 11 Pro Max",
+  "iPhone 13 mini",
+])
+
+languages(["en-US"])
+
+# Xcode scheme that contains the UI test target.
+scheme("hellbender")
+
+# Only run the screenshot walker, not the assertion-heavy setup test.
+test_target_name("hellbenderUITests")
+only_testing(["hellbenderUITests/ScreenshotTests/testScreenshotTour"])
+
+# Output directory is overridden per invocation in the Fastfile so we can split
+# dark and light into sibling directories. This value is the default.
+output_directory("./fastlane/screenshots")
+
+# Wipe previous screenshots before each run so stale files don't linger.
+clear_previous_screenshots(true)
+
+# Clean status bar: 9:41, full battery, full wifi.
+override_status_bar(true)
+
+# Run the simulator with a visible window. Headless mode can cause
+# "FBSApplicationLibrary returned nil" on newer Xcode/iOS versions because
+# SpringBoard hasn't finished registering the app before the test launches.
+headless(false)
+
+# Avoid Electrum sync contention between simulators running in parallel.
+concurrent_simulators(false)
+
+# Fail fast — if one device fails, don't burn time on the rest.
+stop_after_first_error(true)
+
+# Launch arg read by hellbenderApp.swift to wipe UserDefaults/keychain and
+# use an in-memory SwiftData store. Every run starts at the Welcome screen.
+launch_arguments(["-UITesting"])
+
+# Use project-local derived data instead of fastlane's default /tmp path.
+# The temp path causes xcodebuild to skip installing hellbender.app on the
+# simulator (only the test runner gets installed), triggering
+# "FBSApplicationLibrary returned nil" failures.
+derived_data_path("./build/DerivedData")
+
+# Disable parallel testing to prevent xcodebuild from cloning the simulator.
+xcargs("-parallel-testing-enabled NO")

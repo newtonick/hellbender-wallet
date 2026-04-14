@@ -1,0 +1,160 @@
+default_platform(:ios)
+
+DERIVED_DATA   = File.expand_path("../build/DerivedData", __dir__)
+PRODUCTS_DIR   = "#{DERIVED_DATA}/Build/Products"
+SCREENSHOT_SRC = File.expand_path("~/Library/Caches/tools.fastlane/screenshots")
+
+# The xctestrun manifest produced by `build-for-testing`.
+# Glob because the filename embeds the SDK version.
+def xctestrun_path
+  Dir.glob("#{PRODUCTS_DIR}/*.xctestrun").first ||
+    UI.user_error!("No .xctestrun found — run the build step first")
+end
+
+# Device matrix — must match what is available in Simulator.
+DEVICES = {
+  "iPhone 17 Pro Max" => "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4",
+  "iPhone 17 Pro"     => "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4",
+  "iPhone 11 Pro Max" => "platform=iOS Simulator,name=iPhone 11 Pro Max,OS=26.4",
+  "iPhone 13 mini"    => "platform=iOS Simulator,name=iPhone 13 mini,OS=26.4",
+}
+
+platform :ios do
+  desc "Capture App Store + marketing screenshots (dark first, then light)"
+  lane :screenshots do
+    # ── 0. Clear previous output so stale files don't accumulate ────────
+    FileUtils.rm_rf(File.expand_path("screenshots/dark", __dir__))
+    FileUtils.rm_rf(File.expand_path("screenshots/light", __dir__))
+
+    # ── 1. Build for testing once ────────────────────────────────────────
+    # Produces hellbender.app, hellbenderUITests-Runner.app, and the
+    # .xctestrun manifest that tells xcodebuild which apps to install.
+    sh("xcodebuild build-for-testing " \
+       "-scheme hellbender " \
+       "-project ../hellbender.xcodeproj " \
+       "-destination 'generic/platform=iOS Simulator' " \
+       "-derivedDataPath '#{DERIVED_DATA}' " \
+       "-parallel-testing-enabled NO " \
+       "| xcpretty")
+
+    # ── 2. Dark mode ────────────────────────────────────────────────────
+    run_screenshot_pass(mode: "dark")
+
+    # ── 3. Light mode ───────────────────────────────────────────────────
+    run_screenshot_pass(mode: "light")
+
+    # ── 4. Prep captures for frameit ────────────────────────────────────
+    # frameit gem 2.232.2 hardcodes its device list. scripts/patch-frameit.rb
+    # extends it with iPhone 16/17 support (PR #29921), so iPhone 17 Pro and
+    # Pro Max now go through frameit at their native resolution.
+    #
+    #   * iPhone 13 mini: frameit's bundled 13 Mini frame PNG has a ~3-pixel
+    #     misalignment between the placement offset and the actual screen
+    #     hole, leaving a visible gap on the right edge. Skip frameit for
+    #     this device — step 7 composites it directly with ImageMagick,
+    #     upscaling slightly so the screenshot fully covers the hole.
+    thirteen_mini_holding = File.expand_path("screenshots/_13mini_bare", __dir__)
+    FileUtils.rm_rf(thirteen_mini_holding)
+    FileUtils.mkdir_p(thirteen_mini_holding)
+
+    ["dark", "light"].each do |mode|
+      dir = File.expand_path("screenshots/#{mode}/en-US", __dir__)
+
+      # Move 13 mini captures out of frameit's path; remember the mode.
+      mode_holding = "#{thirteen_mini_holding}/#{mode}"
+      FileUtils.mkdir_p(mode_holding)
+      Dir.glob("#{dir}/iPhone 13 mini-*.png").each do |src|
+        next if src.include?("_framed")
+        FileUtils.mv(src, "#{mode_holding}/#{File.basename(src)}")
+      end
+    end
+
+    # ── 5. Frame both passes via frameit (11 Pro Max + 17 Pro Max) ─────
+    frameit(path: "./fastlane/screenshots/dark",  use_platform: "IOS")
+    frameit(path: "./fastlane/screenshots/light", use_platform: "IOS")
+
+    # ── 6. Restore original names and separate framed into subfolder ───
+    ["dark", "light"].each do |mode|
+      src_dir    = File.expand_path("screenshots/#{mode}/en-US", __dir__)
+      framed_dir = File.expand_path("screenshots/#{mode}/framed", __dir__)
+      FileUtils.mkdir_p(framed_dir)
+
+      # Move all _framed.png files into framed/.
+      Dir.glob("#{src_dir}/*_framed.png").each do |f|
+        FileUtils.mv(f, "#{framed_dir}/#{File.basename(f)}")
+      end
+    end
+
+    # ── 7. Custom-frame iPhone 13 mini via ImageMagick ─────────────────
+    # Composite each bare capture onto the 13 Mini bezel, upscaling slightly
+    # (1080×2340 → 1086×2353) so the screenshot fully covers the bezel's
+    # screen hole and no gap shows through on any edge.
+    mini_frame = File.expand_path("~/.fastlane/frameit/latest/Apple iPhone 13 Mini Midnight.png")
+    ["dark", "light"].each do |mode|
+      src_dir    = File.expand_path("screenshots/#{mode}/en-US", __dir__)
+      framed_dir = File.expand_path("screenshots/#{mode}/framed", __dir__)
+      mode_holding = "#{thirteen_mini_holding}/#{mode}"
+
+      Dir.glob("#{mode_holding}/*.png").each do |src|
+        base  = File.basename(src, ".png")
+        framed = "#{framed_dir}/#{base}_framed.png"
+        sh("magick '#{mini_frame}' \\( '#{src}' -resize 1086x2353! \\) " \
+           "-gravity center -composite '#{framed}'")
+        # Restore bare capture to en-US/ for the normal bare output tree
+        FileUtils.mv(src, "#{src_dir}/#{base}.png")
+      end
+    end
+    FileUtils.rm_rf(thirteen_mini_holding)
+  end
+
+  # ────────────────────────────────────────────────────────────────────────
+  private_lane :run_screenshot_pass do |options|
+    mode    = options[:mode]  # "dark" or "light"
+    is_dark = mode == "dark"
+
+    DEVICES.each do |name, destination|
+      UI.header("#{mode} mode — #{name}")
+
+      # Boot
+      sh("xcrun simctl boot '#{name}' 2>/dev/null || true")
+      sleep(5) # let SpringBoard settle
+
+      # Appearance
+      sh("xcrun simctl ui booted appearance #{mode}")
+
+      # Clean status bar: 9:41, full battery, full signal
+      sh("xcrun simctl status_bar booted override " \
+         "--time 09:41 --dataNetwork wifi --wifiMode active --wifiBars 3 " \
+         "--cellularMode active --operatorName '' --cellularBars 4 " \
+         "--batteryState charged --batteryLevel 100 2>/dev/null || true")
+
+      # Clear previous screenshots from the cache so we don't mix passes
+      FileUtils.rm_rf(SCREENSHOT_SRC)
+      FileUtils.mkdir_p(SCREENSHOT_SRC)
+
+      # Run the test with the explicit xctestrun manifest.
+      # This installs all DependentProductPaths (including hellbender.app)
+      # automatically — works around the Xcode 26 bug where
+      # `xcodebuild build test` / `test-without-building -scheme` fail to
+      # install the host app.
+      sh("xcodebuild test-without-building " \
+         "-xctestrun '#{xctestrun_path}' " \
+         "-destination '#{destination}' " \
+         "-only-testing:hellbenderUITests/ScreenshotTests/testScreenshotTour " \
+         "-parallel-testing-enabled NO") do |status|
+        UI.error("Test failed on #{name} (#{mode} mode)") unless status.success?
+      end
+
+      # Collect screenshots into the output directory
+      output_dir = File.expand_path("screenshots/#{mode}/en-US", __dir__)
+      FileUtils.mkdir_p(output_dir)
+      Dir.glob("#{SCREENSHOT_SRC}/*.png").each do |src|
+        FileUtils.cp(src, output_dir)
+      end
+
+      # Reset status bar and shut down
+      sh("xcrun simctl status_bar booted clear 2>/dev/null || true")
+      sh("xcrun simctl shutdown '#{name}' 2>/dev/null || true")
+    end
+  end
+end

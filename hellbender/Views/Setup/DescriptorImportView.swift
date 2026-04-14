@@ -129,6 +129,10 @@ struct DescriptorImportView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 32)
       }
+      .contentShape(Rectangle())
+      .onTapGesture {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+      }
     }
     .scrollDismissesKeyboard(.interactively)
     .sheet(isPresented: $showScanner) {

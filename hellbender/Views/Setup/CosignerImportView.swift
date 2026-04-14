@@ -149,7 +149,12 @@ struct CosignerImportView: View {
         .padding(.bottom, 32)
       }
       .padding(.top, 16)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+      }
     }
+    .scrollDismissesKeyboard(.interactively)
     .sheet(isPresented: $showScanner) {
       URScannerSheet(expectedTypes: [.hdKey], onCancel: { showScanner = false }) { result in
         handleScanResult(result)

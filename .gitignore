@@ -33,3 +33,13 @@ Pods/
 # Xcode temporary build files
 build/
 DerivedData/
+
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/README.md
+fastlane/screenshots/
+
+# Bundler (Gemfile.lock is OK to commit; uncomment next line to ignore vendor dir if added later)
+vendor/bundle/
+.bundle/

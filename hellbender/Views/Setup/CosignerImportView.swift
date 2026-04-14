@@ -66,10 +66,9 @@ struct CosignerImportView: View {
               .font(.hbLabel())
               .foregroundStyle(Color.hbTextSecondary)
 
-            TextField("m/48'/1'/0'/2'", text: $viewModel.cosignerDerivationPaths[viewModel.currentCosignerIndex])
+            Text(viewModel.cosignerDerivationPaths[viewModel.currentCosignerIndex].isEmpty ? "–" : viewModel.cosignerDerivationPaths[viewModel.currentCosignerIndex])
               .font(.hbMono())
-              .textInputAutocapitalization(.never)
-              .autocorrectionDisabled()
+              .frame(maxWidth: .infinity, alignment: .leading)
               .padding(12)
               .background(Color.hbSurfaceElevated)
               .clipShape(RoundedRectangle(cornerRadius: 8))

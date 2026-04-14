@@ -72,28 +72,10 @@ final class hellbenderUITests: XCTestCase {
     nameField.tap()
     nameField.typeText("UI Test Wallet")
 
-    // Tap "Next" to go to review
-    let nextButton = app.buttons["Next"]
-    XCTAssertTrue(nextButton.exists, "Next button should exist")
-    nextButton.tap()
-
-    // Step 5: Review screen
-    let reviewTitle = app.staticTexts["Review Wallet"]
-    XCTAssertTrue(reviewTitle.waitForExistence(timeout: 3), "Review screen should appear")
-
-    // Verify wallet details shown on review screen
-    XCTAssertTrue(app.staticTexts["UI Test Wallet"].exists, "Wallet name should appear in review")
-    XCTAssertTrue(app.staticTexts["1-of-2 Multisig"].exists, "Multisig type should appear in review")
-    XCTAssertTrue(app.staticTexts["Testnet4"].exists, "Network should appear in review")
-    XCTAssertTrue(app.staticTexts["P2WSH (Native Segwit)"].exists, "Script type should appear in review")
-
-    // Verify cosigner fingerprints are displayed
-    XCTAssertTrue(app.staticTexts["7a13a7b1"].exists, "First cosigner fingerprint should appear")
-    XCTAssertTrue(app.staticTexts["30a36b52"].exists, "Second cosigner fingerprint should appear")
-
-    // Tap "Create Wallet" to finish
+    // In descriptor-import mode the button reads "Create Wallet" (not "Next")
+    // and skips the Review screen, going straight to the loaded wallet.
     let createButton = app.buttons["Create Wallet"]
-    XCTAssertTrue(createButton.exists, "Create Wallet button should exist")
+    XCTAssertTrue(createButton.waitForExistence(timeout: 3), "Create Wallet button should exist")
     createButton.tap()
 
     // Verify we land on the main transaction screen (wallet loaded with transactions)

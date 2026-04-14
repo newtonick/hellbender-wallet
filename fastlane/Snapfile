@@ -2,6 +2,7 @@
 # iPad deferred until iPad support ships.
 devices([
   "iPhone 17 Pro Max",
+  "iPhone 17 Pro",
   "iPhone 11 Pro Max",
   "iPhone 13 mini",
 ])

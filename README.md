@@ -122,14 +122,29 @@ Hellbender uses [`fastlane snapshot`](https://docs.fastlane.tools/actions/snapsh
    ```bash
    brew install imagemagick
    ```
-4. Make sure the required simulators are downloaded. The screenshot lane targets:
+4. Patch the installed fastlane gem with iPhone 16/17 device support (from
+   [fastlane PR #29921](https://github.com/fastlane/fastlane/pull/29921)):
+   ```bash
+   bundle exec ruby scripts/patch-frameit.rb
+   ```
+   This is idempotent — safe to re-run. If you upgrade fastlane, the script
+   aborts with a clear error so you can review the patch for the new version.
+
+   On a fresh machine, also download the device frame PNGs before running
+   the patch (they live at `~/.fastlane/frameit/latest/` and are not in the repo):
+   ```bash
+   bundle exec fastlane frameit download_frames
+   ```
+
+5. Make sure the required simulators are downloaded. The screenshot lane targets:
    - **iPhone 17 Pro Max** (6.9")
+   - **iPhone 17 Pro** (6.3")
    - **iPhone 11 Pro Max** (6.5")
    - **iPhone 13 mini** (5.4")
 
    You can trigger a download by booting them once in Xcode (**Window → Devices and Simulators → Simulators → +**) or via the command line:
    ```bash
-   xcrun simctl list devices | grep -E "iPhone 17 Pro Max|iPhone 11 Pro Max|iPhone 13 mini"
+   xcrun simctl list devices | grep -E "iPhone 17 Pro Max|iPhone 17 Pro|iPhone 11 Pro Max|iPhone 13 mini"
    ```
 
 ### Running
@@ -142,11 +157,11 @@ bundle exec fastlane screenshots
 
 This runs the `screenshots` lane defined in [`fastlane/Fastfile`](fastlane/Fastfile), which:
 
-1. Captures all 12 stops in **dark mode** first (the product's default aesthetic)
+1. Captures all 23 stops in **dark mode** first (the product's default aesthetic)
 2. Captures the same stops in **light mode**
-3. Moves iPhone 13 mini bare captures aside, and rescales/renames iPhone 17 Pro Max captures to masquerade as iPhone 14 Pro Max (1290×2796) so `frameit`'s hardcoded device list accepts them
-4. Runs `frameit` to frame iPhone 11 Pro Max (native) and iPhone 17 Pro Max (via the masquerade)
-5. Restores real device names and moves every `*_framed.png` into a sibling `framed/` subfolder
+3. Moves iPhone 13 mini bare captures aside (frameit's bundled 13 mini frame has a pixel-misalignment bug)
+4. Runs `frameit` to composite device bezels onto iPhone 17 Pro Max, iPhone 17 Pro, and iPhone 11 Pro Max screenshots
+5. Moves every `*_framed.png` into a sibling `framed/` subfolder
 6. Composites iPhone 13 mini captures onto the bezel directly with ImageMagick (upscaling to 1086×2353 so the screenshot fully covers the frame's screen hole) and writes the result into the same `framed/` directory
 
 Output lands in:
@@ -156,9 +171,11 @@ fastlane/screenshots/
 ├── dark/
 │   ├── en-US/
 │   │   ├── iPhone 17 Pro Max-01-Welcome.png
+│   │   ├── iPhone 17 Pro-01-Welcome.png
 │   │   └── ...
 │   └── framed/
 │       ├── iPhone 17 Pro Max-01-Welcome_framed.png
+│       ├── iPhone 17 Pro-01-Welcome_framed.png
 │       └── ...
 └── light/
     └── ...
@@ -177,7 +194,7 @@ fastlane/screenshots/
 - **Change which screens are captured:** edit `testScreenshotTour` in `hellbenderUITests/ScreenshotTests.swift` and add or remove `snapshot("NN-Name")` calls.
 - **Skip framing:** remove the `frameit(...)` lines and the ImageMagick composite block (steps 4–7) from `fastlane/Fastfile` if you only need the bare PNGs.
 
-> **Known workarounds** (all contained in `fastlane/Fastfile`): `frameit` gem 2.232.2 hardcodes its supported device list and stops at iPhone 14 Pro Max, so iPhone 17 Pro Max captures are rescaled to 1290×2796 and renamed to masquerade as iPhone 14 Pro Max (~2.3% squish, visually indistinguishable). The bundled iPhone 13 Mini frame PNG also has a ~3-pixel placement-offset bug that leaves a visible edge gap — so 13 mini is composited directly with ImageMagick instead. Both steps become no-ops once fastlane ships native support / fixes the frame art.
+> **Known workaround** (contained in `fastlane/Fastfile`): `frameit` gem 2.232.2's bundled iPhone 13 Mini frame PNG has a ~3-pixel placement-offset bug that leaves a visible edge gap, so 13 mini is composited directly with ImageMagick instead. iPhone 16/17 device support is patched in via `scripts/patch-frameit.rb` (see setup step 4 above).
 
 ## Links
 

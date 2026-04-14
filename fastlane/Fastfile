@@ -14,6 +14,7 @@ end
 # Device matrix — must match what is available in Simulator.
 DEVICES = {
   "iPhone 17 Pro Max" => "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4",
+  "iPhone 17 Pro"     => "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4",
   "iPhone 11 Pro Max" => "platform=iOS Simulator,name=iPhone 11 Pro Max,OS=26.4",
   "iPhone 13 mini"    => "platform=iOS Simulator,name=iPhone 13 mini,OS=26.4",
 }
@@ -43,12 +44,9 @@ platform :ios do
     run_screenshot_pass(mode: "light")
 
     # ── 4. Prep captures for frameit ────────────────────────────────────
-    # frameit gem 2.232.2 hardcodes its device list (stops at iPhone 14
-    # Pro Max) and requires exact pixel-dimension matches. Fixups:
-    #
-    #   * iPhone 17 Pro Max: frameit doesn't know this device at all.
-    #     Rescale to 1290×2796 and rename to "iPhone 14 Pro Max-" so frameit
-    #     matches. Step 6 restores the original name.
+    # frameit gem 2.232.2 hardcodes its device list. scripts/patch-frameit.rb
+    # extends it with iPhone 16/17 support (PR #29921), so iPhone 17 Pro and
+    # Pro Max now go through frameit at their native resolution.
     #
     #   * iPhone 13 mini: frameit's bundled 13 Mini frame PNG has a ~3-pixel
     #     misalignment between the placement offset and the actual screen
@@ -61,13 +59,6 @@ platform :ios do
 
     ["dark", "light"].each do |mode|
       dir = File.expand_path("screenshots/#{mode}/en-US", __dir__)
-
-      Dir.glob("#{dir}/iPhone 17 Pro Max-*.png").each do |src|
-        next if src.include?("_framed")
-        sh("sips -z 2796 1290 '#{src}' > /dev/null")
-        renamed = src.sub("iPhone 17 Pro Max-", "iPhone 14 Pro Max-")
-        FileUtils.mv(src, renamed)
-      end
 
       # Move 13 mini captures out of frameit's path; remember the mode.
       mode_holding = "#{thirteen_mini_holding}/#{mode}"
@@ -87,12 +78,6 @@ platform :ios do
       src_dir    = File.expand_path("screenshots/#{mode}/en-US", __dir__)
       framed_dir = File.expand_path("screenshots/#{mode}/framed", __dir__)
       FileUtils.mkdir_p(framed_dir)
-
-      # Rename the 17 Pro Max masquerade back to its real device name.
-      Dir.glob("#{src_dir}/iPhone 14 Pro Max-*.png").each do |f|
-        real = f.sub("iPhone 14 Pro Max-", "iPhone 17 Pro Max-")
-        FileUtils.mv(f, real)
-      end
 
       # Move all _framed.png files into framed/.
       Dir.glob("#{src_dir}/*_framed.png").each do |f|

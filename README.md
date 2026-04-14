@@ -10,10 +10,15 @@
 
 <p align="center">
   <img src="https://hellbenderwallet.com/assets/screenshots/welcome.png" alt="Welcome" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/wallet-setup.png" alt="Setup Choice" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/multisig-config.png" alt="New Wallet Multisig Config" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/cosigner-import.png" alt="Cosigner Import" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/verify-wallet-top.png" alt="Verify Wallet" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/verify-wallet-backup.png" alt="Backup PDF/QR" width="150" />
   <img src="https://hellbenderwallet.com/assets/screenshots/transactions.png" alt="Transactions" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/multisig-config.png" alt="Multisig Config" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/import-descriptor.png" alt="Import Descriptor" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/review-wallet.png" alt="Review Wallet" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/send.png" alt="Send" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/receive.png" alt="Receive" width="150" />
+  <img src="https://hellbenderwallet.com/assets/screenshots/utxos.png" alt="UTXO" width="150" />
 </p>
 
 ---

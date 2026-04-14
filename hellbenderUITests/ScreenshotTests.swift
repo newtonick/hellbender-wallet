@@ -28,23 +28,26 @@ final class ScreenshotTests: XCTestCase {
   }
 
   @MainActor
-  func testScreenshotTour() throws {
+  func testScreenshotTour() {
     setupSnapshot(app)
     app.launch()
 
     // MARK: 01 - Welcome
+
     let getStarted = app.buttons["Get Started"]
     XCTAssertTrue(getStarted.waitForExistence(timeout: 5), "Welcome screen should show 'Get Started' button")
     snapshot("01-Welcome")
     getStarted.tap()
 
     // MARK: 02 - Wallet Setup (creation choice)
+
     let walletSetupTitle = app.staticTexts["Wallet Setup"]
     XCTAssertTrue(walletSetupTitle.waitForExistence(timeout: 3), "Wallet Setup screen should appear")
     sleep(1)
     snapshot("02-Wallet-Setup")
 
     // MARK: Walk the descriptor-import flow to reach a loaded wallet.
+
     // (Mirrors hellbenderUITests.swift `testSetupWalletViaDescriptorImport`.)
 
     let importCard = app.staticTexts["Import Descriptor"]
@@ -109,9 +112,11 @@ final class ScreenshotTests: XCTestCase {
     sleep(12)
 
     // MARK: 03 - Transactions (balance hero + tx list)
+
     snapshot("03-Transactions")
 
     // MARK: 04 - Wallet Picker (overlay on transactions screen)
+
     let walletPicker = app.buttons["walletPicker"].firstMatch
     if walletPicker.waitForExistence(timeout: 3) {
       walletPicker.tap()
@@ -125,6 +130,7 @@ final class ScreenshotTests: XCTestCase {
     }
 
     // MARK: 05 - Transaction Detail (tap first received transaction)
+
     let firstTxCell = app.cells.firstMatch
     if firstTxCell.waitForExistence(timeout: 5) {
       firstTxCell.tap()
@@ -140,6 +146,7 @@ final class ScreenshotTests: XCTestCase {
     }
 
     // MARK: 06 - Dashboard sheet (via "..." overflow menu)
+
     let walletMenu = app.buttons["walletMenu"].firstMatch
     if walletMenu.waitForExistence(timeout: 3) {
       walletMenu.tap()
@@ -155,6 +162,7 @@ final class ScreenshotTests: XCTestCase {
     }
 
     // MARK: 07 - Receive
+
     let receiveTab = app.tabBars.buttons["Receive"]
     XCTAssertTrue(receiveTab.waitForExistence(timeout: 5), "Receive tab should exist")
     receiveTab.tap()
@@ -163,12 +171,14 @@ final class ScreenshotTests: XCTestCase {
     snapshot("07-Receive")
 
     // MARK: 08 - Addresses
+
     viewAllAddresses.tap()
     let addressesTitle = app.navigationBars["Addresses"]
     XCTAssertTrue(addressesTitle.waitForExistence(timeout: 10), "Addresses screen should appear")
     snapshot("08-Addresses")
 
     // MARK: 09 - Address Detail (tap first address)
+
     let firstAddressCell = app.cells.firstMatch
     if firstAddressCell.waitForExistence(timeout: 5) {
       firstAddressCell.tap()
@@ -181,6 +191,7 @@ final class ScreenshotTests: XCTestCase {
     }
 
     // MARK: 10 - Send (lands on recipients step)
+
     let sendTab = app.tabBars.buttons["Send"]
     XCTAssertTrue(sendTab.waitForExistence(timeout: 5), "Send tab should exist")
     sendTab.tap()
@@ -190,6 +201,7 @@ final class ScreenshotTests: XCTestCase {
     snapshot("10-Send")
 
     // MARK: 11 - UTXOs
+
     let utxosTab = app.tabBars.buttons["UTXOs"]
     XCTAssertTrue(utxosTab.waitForExistence(timeout: 5), "UTXOs tab should exist")
     utxosTab.tap()
@@ -199,6 +211,7 @@ final class ScreenshotTests: XCTestCase {
     snapshot("11-UTXOs")
 
     // MARK: 12 - UTXO Detail (tap first UTXO)
+
     let firstUTXOCell = app.cells.firstMatch
     if firstUTXOCell.waitForExistence(timeout: 5) {
       firstUTXOCell.tap()
@@ -211,6 +224,7 @@ final class ScreenshotTests: XCTestCase {
     }
 
     // MARK: 13 - Settings
+
     let settingsTab = app.tabBars.buttons["Settings"]
     XCTAssertTrue(settingsTab.waitForExistence(timeout: 5), "Settings tab should exist")
     settingsTab.tap()
@@ -246,6 +260,7 @@ final class ScreenshotTests: XCTestCase {
     createNewCard.tap()
 
     // MARK: 14 - Multisig Configuration (Testnet4 default)
+
     let multisigTitle = app.staticTexts["Multisig Configuration"]
     XCTAssertTrue(multisigTitle.waitForExistence(timeout: 5), "Multisig Configuration screen should appear")
     sleep(1)
@@ -258,6 +273,7 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: 15 - Multisig Configuration (Mainnet)
+
     snapshot("15-MultisigConfig-Mainnet")
 
     // Switch back to Testnet4
@@ -272,12 +288,14 @@ final class ScreenshotTests: XCTestCase {
     multisigNextBtn.tap()
 
     // MARK: 16 - Empty Cosigner Import Screen
+
     let cosignerImportTitle = app.staticTexts["Import Cosigners"]
     XCTAssertTrue(cosignerImportTitle.waitForExistence(timeout: 5), "Import Cosigners screen should appear")
     sleep(1)
     snapshot("16-CosignerImport-Empty")
 
     // MARK: Fill Cosigner 1
+
     // Type fingerprint into TextField, press Return to dismiss its keyboard.
     // Then type xpub directly into the TextEditor (avoids the system clipboard
     // permission prompt), and dismiss via swipeDown (scrollDismissesKeyboard).
@@ -297,6 +315,7 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: 17 - Cosigner 1 Filled (no keyboard)
+
     snapshot("17-CosignerImport-Cosigner1")
 
     let nextCosignerBtn1 = app.buttons["Next Cosigner"]
@@ -305,6 +324,7 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: Fill Cosigner 2
+
     let fpField2 = app.textFields["e.g. 73c5da0a"]
     XCTAssertTrue(fpField2.waitForExistence(timeout: 3), "Fingerprint field should exist for cosigner 2")
     fpField2.tap()
@@ -324,6 +344,7 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: Fill Cosigner 3
+
     let fpField3 = app.textFields["e.g. 73c5da0a"]
     XCTAssertTrue(fpField3.waitForExistence(timeout: 3), "Fingerprint field should exist for cosigner 3")
     fpField3.tap()
@@ -338,6 +359,7 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: 18 - Cosigner 3 Filled (no keyboard)
+
     snapshot("18-CosignerImport-Cosigner3")
 
     let continueBtn = app.buttons["Continue"]
@@ -345,6 +367,7 @@ final class ScreenshotTests: XCTestCase {
     continueBtn.tap()
 
     // MARK: 19 - Wallet Name
+
     let nameWalletTitle = app.staticTexts["Name Your Wallet"]
     XCTAssertTrue(nameWalletTitle.waitForExistence(timeout: 10), "Wallet name screen should appear")
     let newWalletNameField = app.textFields["My Wallet"]
@@ -360,6 +383,7 @@ final class ScreenshotTests: XCTestCase {
     walletNameNextBtn.tap()
 
     // MARK: 20 - Verify Wallet (top — summary + cosigners)
+
     let verifyWalletTitle = app.staticTexts["Verify Wallet"]
     XCTAssertTrue(verifyWalletTitle.waitForExistence(timeout: 30), "Verify Wallet screen should appear")
     sleep(2)
@@ -374,6 +398,7 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: 21 - Verify Wallet (backup section)
+
     snapshot("21-VerifyWallet-Backup")
 
     // Scroll to bring "Verify Receive Address" section to the top
@@ -381,6 +406,7 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: 22 - Verify Wallet (receive address section)
+
     snapshot("22-VerifyWallet-Verify")
 
     // Tap "Create Wallet"
@@ -389,6 +415,7 @@ final class ScreenshotTests: XCTestCase {
     createWalletFinalBtn.tap()
 
     // MARK: 23 - New Wallet syncing
+
     // Capture the transaction screen ~3 seconds into the sync (sheet animates
     // away in ~1s, then sync starts — total sleep of 4s lands mid-sync).
     snapshot("23-NewWalletLoading")

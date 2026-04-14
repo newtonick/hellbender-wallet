@@ -7,7 +7,7 @@ struct WalletCreationChoiceView: View {
     VStack(spacing: 24) {
       Spacer()
 
-      Text("Set Up Wallet")
+      Text("Wallet Setup")
         .font(.hbDisplay(28))
         .foregroundStyle(Color.hbTextPrimary)
 
@@ -30,7 +30,7 @@ struct WalletCreationChoiceView: View {
         ChoiceCard(
           icon: "plus.circle.fill",
           title: "Create New Wallet",
-          subtitle: "Set up M-of-N multisig by importing cosigner xpubs from one or more air-gapped signing devices",
+          subtitle: "Setup M-of-N multisig by importing cosigner xpubs from one or more air-gapped signing devices",
           isSelected: viewModel.creationMode == .createNew
         ) {
           viewModel.creationMode = .createNew

@@ -38,9 +38,9 @@ final class ScreenshotTests: XCTestCase {
     snapshot("01-Welcome")
     getStarted.tap()
 
-    // MARK: 02 - Set Up Wallet (creation choice)
-    let walletSetupTitle = app.staticTexts["Set Up Wallet"]
-    XCTAssertTrue(walletSetupTitle.waitForExistence(timeout: 3), "Set Up Wallet screen should appear")
+    // MARK: 02 - Wallet Setup (creation choice)
+    let walletSetupTitle = app.staticTexts["Wallet Setup"]
+    XCTAssertTrue(walletSetupTitle.waitForExistence(timeout: 3), "Wallet Setup screen should appear")
     sleep(1)
     snapshot("02-Wallet-Setup")
 

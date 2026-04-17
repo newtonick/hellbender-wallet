@@ -159,6 +159,7 @@ private struct FiatSettingsRow: View {
         }
       }
       .tint(Color.hbBitcoinOrange)
+      .accessibilityIdentifier("showFiatPriceToggle")
 
       if fiatEnabled {
         Picker("Price Source", selection: $fiatSourceRaw) {

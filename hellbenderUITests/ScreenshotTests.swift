@@ -121,19 +121,25 @@ final class ScreenshotTests: XCTestCase {
     settingsTabEarly.tap()
     sleep(1)
 
-    let fiatToggle = app.switches["Show Fiat Price"]
-    if fiatToggle.waitForExistence(timeout: 5) {
-      if fiatToggle.value as? String == "0" {
-        fiatToggle.tap()
-        sleep(1)
-      }
+    let fiatToggle = app.switches["showFiatPriceToggle"]
+    XCTAssertTrue(fiatToggle.waitForExistence(timeout: 5), "Show Fiat Price toggle should exist in Settings")
+    if fiatToggle.value as? String == "0" {
+      // Tap the right edge of the row where the switch thumb lives. A plain
+      // fiatToggle.tap() lands in the center of the accessibility frame,
+      // which for a Toggle with a two-line VStack label can hit the label
+      // area without flipping the switch.
+      fiatToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+      sleep(1)
     }
+    XCTAssertEqual(fiatToggle.value as? String, "1", "Show Fiat Price toggle should be on after tap")
 
     // Return to Transactions tab
     let transactionsTabEarly = app.tabBars.buttons["Transactions"]
     XCTAssertTrue(transactionsTabEarly.waitForExistence(timeout: 5), "Transactions tab should exist")
     transactionsTabEarly.tap()
-    sleep(2)
+    // Give the fiat rates fetch (kicked off when the toggle flipped) time to
+    // complete so the balance hero renders the secondary fiat line.
+    sleep(5)
 
     // MARK: 04 - Transactions (balance hero + tx list)
 
@@ -360,7 +366,11 @@ final class ScreenshotTests: XCTestCase {
     XCTAssertTrue(xpubEditor2.waitForExistence(timeout: 3), "Xpub text editor should exist for cosigner 2")
     xpubEditor2.tap()
     xpubEditor2.typeText("tpubDET5GnMK8Zr7UH63ni72etKd7ZYxVq8NvtSneNBfEDJ7YtnSHUmiPCaBYXzCdR6ZBKWvBMXT3urCVp7sLmG6z8VTpdFRJuW4VL7xjHdLFpY")
-    app.swipeDown()
+    // Dismiss keyboard by tapping a non-field area. Do not use app.swipeDown()
+    // here: the setup wizard is inside a sheet, and a full-app swipe-down
+    // starts the sheet-dismiss gesture, leaving the sheet in a partially-
+    // dragged state where the subsequent "Next Cosigner" tap fails to advance.
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
     sleep(1)
 
     let nextCosignerBtn2 = app.buttons["Next Cosigner"]
@@ -369,6 +379,12 @@ final class ScreenshotTests: XCTestCase {
     sleep(1)
 
     // MARK: Fill Cosigner 3
+
+    // Verify we actually advanced to cosigner 3 before proceeding, so a future
+    // regression in the cosigner-2 -> cosigner-3 transition fails here rather
+    // than producing a mislabeled screenshot.
+    let cosigner3Header = app.staticTexts["Cosigner 3 of 3"]
+    XCTAssertTrue(cosigner3Header.waitForExistence(timeout: 3), "Should have advanced to Cosigner 3 of 3")
 
     let fpField3 = app.textFields["e.g. 73c5da0a"]
     XCTAssertTrue(fpField3.waitForExistence(timeout: 3), "Fingerprint field should exist for cosigner 3")

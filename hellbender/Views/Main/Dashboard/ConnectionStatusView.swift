@@ -265,7 +265,7 @@ struct ConnectionStatusView: View {
   }
 
   private func copyDebugInfo() {
-    var lines = ["=== Hellbender Debug Info ==="]
+    var lines = ["=== Birch Debug Info ==="]
     lines.append("Timestamp: \(ISO8601DateFormatter().string(from: Date()))")
 
     // SwiftData wallet info

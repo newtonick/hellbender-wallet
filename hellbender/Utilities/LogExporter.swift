@@ -27,7 +27,7 @@ enum LogExporter {
       return "No log entries found in the last \(Int(hours)) hour(s)."
     }
 
-    let header = "Hellbender Logs — Exported \(formatter.string(from: Date()))\n"
+    let header = "Birch Logs — Exported \(formatter.string(from: Date()))\n"
       + "Entries: \(lines.count) (last \(Int(hours))h)\n"
       + String(repeating: "─", count: 60) + "\n"
 

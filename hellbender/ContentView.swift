@@ -95,27 +95,21 @@ struct ContentView: View {
 // MARK: - Privacy Overlay
 
 private struct PrivacyOverlayView: View {
-  var body: some View {
-    ZStack {
-      Color.hbBackground
-        .ignoresSafeArea()
+  private static let iconSize: CGFloat = 120
 
-      Image("WelcomeIcon")
-        .resizable()
-        .aspectRatio(contentMode: .fit)
-        .frame(width: 120, height: 120)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(
-          RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .stroke(Color.hbBackground, lineWidth: 24)
-            .blur(radius: 12)
+  var body: some View {
+    Color.hbBackground
+      .ignoresSafeArea()
+      .overlay(alignment: .top) {
+        GeometryReader { proxy in
+          ThemedAppIcon()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: Self.iconSize, height: Self.iconSize)
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        )
-        .overlay(
-          RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .strokeBorder(Color.hbBorder.opacity(0.5), lineWidth: 1)
-        )
-    }
+            .frame(maxWidth: .infinity)
+            .padding(.top, max(0, proxy.size.height / 3 - Self.iconSize / 2))
+        }
+      }
   }
 }
 

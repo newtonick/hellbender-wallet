@@ -340,7 +340,8 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CC0000010000000000000004 /* Hellbender.xcconfig */;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 25;
+				MARKETING_VERSION = 0.2.0;
 			};
 			name = Debug;
 		};
@@ -348,7 +349,8 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CC0000010000000000000004 /* Hellbender.xcconfig */;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 25;
+				MARKETING_VERSION = 0.2.0;
 			};
 			name = Release;
 		};

@@ -24,11 +24,6 @@ struct SettingsView: View {
           // Security
           AppLockSettingsSection()
 
-          // Appearance
-          Section("Appearance") {
-            AppearanceSettingsRow()
-          }
-
           // Fee Estimation
           Section("Fee Estimation") {
             FeeSettingsRow()
@@ -37,6 +32,16 @@ struct SettingsView: View {
           // Fiat Display
           Section("Fiat Display") {
             FiatSettingsRow()
+          }
+
+          // Appearance
+          Section("Appearance") {
+            AppearanceSettingsRow()
+          }
+
+          // App Icon
+          Section("App Icon") {
+            AppIconSettingsRow()
           }
 
           // About
@@ -89,6 +94,106 @@ private struct AppearanceSettingsRow: View {
       }
     }
     .listRowBackground(Color.hbSurface)
+  }
+}
+
+// MARK: - App Icon Settings
+
+private enum AppIconOption: String, CaseIterable, Identifiable {
+  case light
+  case dark
+
+  var id: String { rawValue }
+
+  /// Name passed to `UIApplication.setAlternateIconName`; `nil` selects the primary icon.
+  var alternateIconName: String? {
+    switch self {
+    case .light: nil
+    case .dark: "AppIcon-Dark"
+    }
+  }
+
+  var displayName: String {
+    switch self {
+    case .light: "Light"
+    case .dark: "Dark"
+    }
+  }
+
+  var previewAssetName: String {
+    switch self {
+    case .light: "AppIconPreviewLight"
+    case .dark: "AppIconPreviewDark"
+    }
+  }
+
+  static var current: AppIconOption {
+    UIApplication.shared.alternateIconName == "AppIcon-Dark" ? .dark : .light
+  }
+}
+
+private struct AppIconSettingsRow: View {
+  @State private var selected: AppIconOption = .current
+
+  var body: some View {
+    HStack(spacing: 12) {
+      ForEach(AppIconOption.allCases) { option in
+        AppIconTile(option: option, isSelected: selected == option) {
+          select(option)
+        }
+      }
+    }
+    .listRowBackground(Color.hbSurface)
+  }
+
+  private func select(_ option: AppIconOption) {
+    guard selected != option else { return }
+    UIApplication.shared.setAlternateIconName(option.alternateIconName) { error in
+      Task { @MainActor in
+        if let error {
+          logger.error("Failed to set app icon: \(error.localizedDescription, privacy: .public)")
+        } else {
+          logger.info("App icon changed to \(option.displayName, privacy: .public)")
+          selected = option
+        }
+      }
+    }
+  }
+}
+
+private struct AppIconTile: View {
+  let option: AppIconOption
+  let isSelected: Bool
+  let onTap: () -> Void
+
+  var body: some View {
+    Button(action: onTap) {
+      VStack(spacing: 8) {
+        Image(option.previewAssetName)
+          .resizable()
+          .aspectRatio(contentMode: .fit)
+          .frame(width: 72, height: 72)
+          .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+          .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+              .stroke(isSelected ? Color.hbBitcoinOrange : Color.hbBorder, lineWidth: isSelected ? 3 : 1)
+          )
+
+        HStack(spacing: 4) {
+          if isSelected {
+            Image(systemName: "checkmark.circle.fill")
+              .font(.system(size: 12))
+              .foregroundStyle(Color.hbBitcoinOrange)
+          }
+          Text(option.displayName)
+            .font(.hbBody(13))
+            .foregroundStyle(Color.hbTextPrimary)
+        }
+      }
+      .frame(maxWidth: .infinity)
+      .padding(.vertical, 8)
+    }
+    .buttonStyle(.plain)
   }
 }
 

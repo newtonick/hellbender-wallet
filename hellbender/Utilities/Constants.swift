@@ -3,7 +3,7 @@ import Foundation
 enum Constants {
   // MARK: - App
 
-  static let appName = "Hellbender"
+  static let appName = "Birch"
   static let defaultNetwork: BitcoinNetwork = .testnet4
 
   // MARK: - BIP48 P2WSH

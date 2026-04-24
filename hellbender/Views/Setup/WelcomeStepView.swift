@@ -8,8 +8,7 @@ struct WelcomeStepView: View {
       Spacer()
 
       // Icon
-      Image("WelcomeIcon")
-        .resizable()
+      ThemedAppIcon()
         .aspectRatio(contentMode: .fit)
         .frame(width: 120, height: 120)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -19,13 +18,9 @@ struct WelcomeStepView: View {
             .blur(radius: 12)
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         )
-        .overlay(
-          RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .strokeBorder(Color.hbBorder.opacity(0.5), lineWidth: 1)
-        )
 
       VStack(spacing: 12) {
-        Text("Hellbender Wallet")
+        Text("Birch Wallet")
           .font(.hbDisplay(34))
           .foregroundStyle(Color.hbTextPrimary)
 

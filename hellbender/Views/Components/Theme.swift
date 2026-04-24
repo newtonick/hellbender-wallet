@@ -105,8 +105,8 @@ enum AppTheme: String, CaseIterable {
   var displayName: String {
     switch self {
     case .system: "System"
-    case .dark: "Dark"
-    case .light: "Light"
+    case .dark: "Hellbender Dark"
+    case .light: "Hellbender Light"
     case .birchDark: "Birch Dark"
     case .birchLight: "Birch Light"
     }
@@ -128,7 +128,7 @@ enum AppTheme: String, CaseIterable {
 @Observable
 final class ThemeManager {
   static let shared = ThemeManager()
-  private(set) var theme: HBTheme = .dark
+  private(set) var theme: HBTheme = .birchDark
 
   private init() {
     let saved = UserDefaults.standard.string(forKey: Constants.themeKey) ?? AppTheme.system.rawValue
@@ -143,7 +143,7 @@ final class ThemeManager {
   /// Sets the displayed theme to the appropriate custom palette for the given OS color scheme.
   /// Only used when the System theme is selected — does not save to UserDefaults.
   func applySystemColorScheme(_ colorScheme: ColorScheme) {
-    theme = colorScheme == .dark ? .dark : .light
+    theme = colorScheme == .dark ? .birchDark : .birchLight
   }
 }
 
@@ -285,6 +285,21 @@ extension View {
 
   func hbSecondaryButton() -> some View {
     modifier(HBSecondaryButtonModifier())
+  }
+}
+
+// MARK: - Themed App Icon
+
+/// Renders the app-icon artwork that matches the current theme's light/dark appearance.
+/// Uses `AppIconPreviewLight` on light color schemes, `AppIconPreviewDark` on dark.
+/// The theme is applied via `.preferredColorScheme` at the root, so this works for
+/// all AppTheme cases (system, hellbender light/dark, birch light/dark).
+struct ThemedAppIcon: View {
+  @Environment(\.colorScheme) private var colorScheme
+
+  var body: some View {
+    Image(colorScheme == .dark ? "AppIconPreviewDark" : "AppIconPreviewLight")
+      .resizable()
   }
 }
 

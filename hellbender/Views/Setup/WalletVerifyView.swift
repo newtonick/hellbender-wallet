@@ -75,7 +75,7 @@ struct WalletVerifyView: View {
               .foregroundStyle(Color.hbTextPrimary)
           }
 
-          Text("The output descriptor is your **only** recovery path. If you lose Hellbender (phone dies, app deleted, data corrupted), the descriptor is the only thing needed to rebuild the wallet in any compatible coordinator (Sparrow, Nunchuk, etc.). Without it, you'd need to re-gather all cosigner xpubs and reconstruct the exact same configuration — which may not be possible.")
+          Text("The output descriptor is your **only** recovery path. If you lose Birch (phone dies, app deleted, data corrupted), the descriptor is the only thing needed to rebuild the wallet in any compatible coordinator (Sparrow, Nunchuk, etc.). Without it, you'd need to re-gather all cosigner xpubs and reconstruct the exact same configuration — which may not be possible.")
             .font(.hbBody(13))
             .foregroundStyle(Color.hbTextSecondary)
 
@@ -140,7 +140,7 @@ struct WalletVerifyView: View {
             .font(.hbHeadline)
             .foregroundStyle(Color.hbTextPrimary)
 
-          Text("Verifying your first receive address confirms that Hellbender built the correct output descriptor and will generate the same addresses as your cosigner devices. If the addresses don't match, funds sent to this wallet could be unspendable.")
+          Text("Verifying your first receive address confirms that Birch built the correct output descriptor and will generate the same addresses as your cosigner devices. If the addresses don't match, funds sent to this wallet could be unspendable.")
             .font(.hbBody(13))
             .foregroundStyle(Color.hbTextSecondary)
 

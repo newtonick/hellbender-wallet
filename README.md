@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://hellbenderwallet.com/assets/AppIcon-og.png" alt="Hellbender" width="128" height="128" style="border-radius: 24px;" />
+  <img src="https://hellbenderwallet.com/assets/AppIcon-og.png" alt="Birch" width="128" height="128" style="border-radius: 24px;" />
 </p>
 
-<h1 align="center">Hellbender</h1>
+<h1 align="center">Birch</h1>
 
 <p align="center">
   <em>Travel to your private keys and leave your laptop at home.</em>
@@ -23,7 +23,7 @@
 
 ---
 
-Hellbender is an iOS Bitcoin multisig coordinator written in Swift. It operates as a **watch-only wallet** — private keys never touch your phone. Coordinate signing across air-gapped hardware wallets using animated QR codes, bringing cold storage security with mobile convenience.
+Birch is an iOS Bitcoin multisig coordinator written in Swift. It operates as a **watch-only wallet** — private keys never touch your phone. Coordinate signing across air-gapped hardware wallets using animated QR codes, bringing cold storage security with mobile convenience.
 
 ## Features
 
@@ -77,7 +77,7 @@ GitHub Actions runs `xcodebuild clean build analyze` on every push and pull requ
 
 ### Reproducible Builds
 
-Hellbender supports **functionally equivalent** reproducible builds. Given the same source code and Xcode version, two independent builds will produce the same compiled logic after normalization. Certain metadata bytes (Mach-O UUIDs, timestamps, build-machine identifiers) are expected to differ and are zeroed by the normalization step.
+Birch supports **functionally equivalent** reproducible builds. Given the same source code and Xcode version, two independent builds will produce the same compiled logic after normalization. Certain metadata bytes (Mach-O UUIDs, timestamps, build-machine identifiers) are expected to differ and are zeroed by the normalization step.
 
 **What IS reproducible** (after normalization): all code-bearing sections, resources, and application logic.
 
@@ -111,7 +111,7 @@ The comparison exits 0 if the builds are functionally equivalent, 1 if code diff
 
 ## Generating Screenshots
 
-Hellbender uses [`fastlane snapshot`](https://docs.fastlane.tools/actions/snapshot/) to generate marketing and App Store screenshots. A single UI test walks the app from Welcome through the main tabs, capturing every major screen on each configured device in both dark and light mode.
+Birch uses [`fastlane snapshot`](https://docs.fastlane.tools/actions/snapshot/) to generate marketing and App Store screenshots. A single UI test walks the app from Welcome through the main tabs, capturing every major screen on each configured device in both dark and light mode.
 
 ### One-time setup
 
@@ -211,5 +211,5 @@ fastlane/screenshots/
 
 MIT License — see [LICENSE](LICENSE) for details.
 
-Hellbender's dependencies use permissive licenses compatible with MIT:
+Birch's dependencies use permissive licenses compatible with MIT:
 bdk-swift (MIT/Apache-2.0), URKit (BSD-2-Clause-Patent), URUI (BSD-2-Clause-Patent), Bbqr (Apache-2.0).

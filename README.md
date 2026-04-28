@@ -65,7 +65,7 @@ All dependencies are managed via Swift Package Manager and resolve automatically
    git clone https://github.com/newtonick/hellbender-wallet.git
    cd hellbender-wallet
    ```
-2. Open `hellbender.xcodeproj` in Xcode
+2. Open `birch.xcodeproj` in Xcode
 3. SPM dependencies resolve automatically on first open
 4. Build and run on a simulator or device
 
@@ -94,7 +94,7 @@ Birch supports **functionally equivalent** reproducible builds. Given the same s
 ./scripts/build-release.sh
 ```
 
-This creates an unsigned archive at `/tmp/hellbender-build/hellbender.xcarchive`.
+This creates an unsigned archive at `/tmp/birch-build/birch.xcarchive`.
 
 #### Verifying two builds
 
@@ -188,7 +188,7 @@ fastlane/screenshots/
 
 ### How it works
 
-- [`hellbenderUITests/ScreenshotTests.swift`](hellbenderUITests/ScreenshotTests.swift) is a dedicated XCUITest that walks the app. It reuses the existing `-UITesting` launch argument (defined in `hellbender/hellbenderApp.swift`), which wipes `UserDefaults`/keychain and uses an in-memory SwiftData store so every run starts from a deterministic Welcome screen.
+- [`birchUITests/ScreenshotTests.swift`](birchUITests/ScreenshotTests.swift) is a dedicated XCUITest that walks the app. It reuses the existing `-UITesting` launch argument (defined in `birch/birchApp.swift`), which wipes `UserDefaults`/keychain and uses an in-memory SwiftData store so every run starts from a deterministic Welcome screen.
 - The test imports a real testnet4 1-of-2 `wsh(sortedmulti(...))` descriptor with live history, waits for Electrum sync, then visits each screen.
 - Dark/light mode is driven by the simulator's OS appearance (`xcrun simctl ui ... appearance`). The app's `RootView` follows the OS when the theme is set to `.system`, which it is by default after the `-UITesting` wipe, so no app-side toggle is required.
 - The device matrix, scheme, status bar override, and other `snapshot` options live in [`fastlane/Snapfile`](fastlane/Snapfile). Device destinations (simulator OS version), the frameit pass, and the custom 13 mini ImageMagick composite all live in [`fastlane/Fastfile`](fastlane/Fastfile).
@@ -196,7 +196,7 @@ fastlane/screenshots/
 ### Customizing
 
 - **Add/remove devices:** edit both the `devices([...])` array in `fastlane/Snapfile` and the `DEVICES` hash in `fastlane/Fastfile`.
-- **Change which screens are captured:** edit `testScreenshotTour` in `hellbenderUITests/ScreenshotTests.swift` and add or remove `snapshot("NN-Name")` calls.
+- **Change which screens are captured:** edit `testScreenshotTour` in `birchUITests/ScreenshotTests.swift` and add or remove `snapshot("NN-Name")` calls.
 - **Skip framing:** remove the `frameit(...)` lines and the ImageMagick composite block (steps 4–7) from `fastlane/Fastfile` if you only need the bare PNGs.
 
 > **Known workaround** (contained in `fastlane/Fastfile`): `frameit` gem 2.232.2's bundled iPhone 13 Mini frame PNG has a ~3-pixel placement-offset bug that leaves a visible edge gap, so 13 mini is composited directly with ImageMagick instead. iPhone 16/17 device support is patched in via `scripts/patch-frameit.rb` (see setup step 4 above).

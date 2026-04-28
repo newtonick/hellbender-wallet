@@ -22,20 +22,20 @@ jobs:
           xcodebuild -version
 
       - name: Resolve packages
-        run: xcodebuild -resolvePackageDependencies -project hellbender.xcodeproj -scheme hellbender
+        run: xcodebuild -resolvePackageDependencies -project birch.xcodeproj -scheme birch
 
       - name: Validate Package.resolved
         run: |
-          if ! git diff --quiet hellbender.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved; then
+          if ! git diff --quiet birch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved; then
             echo "::error::Package.resolved has uncommitted changes after resolution. Commit the updated Package.resolved."
-            git diff hellbender.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+            git diff birch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
             exit 1
           fi
 
       - name: Build
         env:
-          scheme: hellbender
-          file_to_build: hellbender.xcodeproj
+          scheme: birch
+          file_to_build: birch.xcodeproj
           filetype_parameter: project
         run: |
           xcodebuild clean build analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" CODE_SIGNING_ALLOWED=NO | xcpretty && exit ${PIPESTATUS[0]}

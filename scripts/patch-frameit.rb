@@ -21,7 +21,7 @@
 # Usage:
 #   bundle exec ruby scripts/patch-frameit.rb
 
-SENTINEL                  = "# PATCH: hellbender iPhone 17 frameit support"
+SENTINEL                  = "# PATCH: birch iPhone 17 frameit support"
 EXPECTED_FASTLANE_VERSION = "2.232.2"
 
 # ── Locate gem files ──────────────────────────────────────────────────────────

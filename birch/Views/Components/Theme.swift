@@ -78,17 +78,17 @@ struct HBTheme {
   )
 
   static let birchLight = HBTheme(
-    background: Color(red: 0.929, green: 0.910, blue: 0.875),
-    surface: Color(red: 0.851, green: 0.824, blue: 0.773),
-    surfaceElevated: Color(red: 0.929, green: 0.910, blue: 0.875),
-    border: Color(red: 0.769, green: 0.741, blue: 0.690),
-    textPrimary: Color(red: 0.165, green: 0.145, blue: 0.125),
-    textSecondary: Color(red: 0.420, green: 0.380, blue: 0.345),
-    accent: Color(red: 0.769, green: 0.584, blue: 0.165),
-    heroBackground: Color(red: 0.851, green: 0.824, blue: 0.773),
-    success: Color(red: 0.353, green: 0.400, blue: 0.259),
-    error: Color(red: 0.549, green: 0.188, blue: 0.125),
-    secondaryAccent: Color(red: 0.353, green: 0.400, blue: 0.259),
+    background: Color(red: 0.949, green: 0.933, blue: 0.902),
+    surface: Color(red: 0.890, green: 0.867, blue: 0.827),
+    surfaceElevated: Color(red: 0.949, green: 0.933, blue: 0.902),
+    border: Color(red: 0.690, green: 0.663, blue: 0.616),
+    textPrimary: Color(red: 0.137, green: 0.122, blue: 0.106),
+    textSecondary: Color(red: 0.310, green: 0.282, blue: 0.251),
+    accent: Color(red: 0.698, green: 0.525, blue: 0.133),
+    heroBackground: Color(red: 0.890, green: 0.867, blue: 0.827),
+    success: Color(red: 0.278, green: 0.373, blue: 0.224),
+    error: Color(red: 0.600, green: 0.180, blue: 0.120),
+    secondaryAccent: Color(red: 0.278, green: 0.373, blue: 0.224),
     colorScheme: .light
   )
 }
@@ -105,8 +105,8 @@ enum AppTheme: String, CaseIterable {
   var displayName: String {
     switch self {
     case .system: "System"
-    case .dark: "Birch Dark"
-    case .light: "Birch Light"
+    case .dark: "Hellbender Dark"
+    case .light: "Hellbender Light"
     case .birchDark: "Birch Dark"
     case .birchLight: "Birch Light"
     }

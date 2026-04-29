@@ -95,21 +95,32 @@ struct ContentView: View {
 // MARK: - Privacy Overlay
 
 private struct PrivacyOverlayView: View {
-  private static let iconSize: CGFloat = 120
-
   var body: some View {
-    Color.hbBackground
-      .ignoresSafeArea()
-      .overlay(alignment: .top) {
-        GeometryReader { proxy in
-          ThemedAppIcon()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: Self.iconSize, height: Self.iconSize)
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .frame(maxWidth: .infinity)
-            .padding(.top, max(0, proxy.size.height / 3 - Self.iconSize / 2))
-        }
+    ZStack {
+      Color.hbBackground
+        .ignoresSafeArea()
+
+      VStack(spacing: 32) {
+        Spacer()
+
+        ThemedAppIcon()
+          .aspectRatio(contentMode: .fit)
+          .frame(width: 120, height: 120)
+          .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+          .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+              .stroke(Color.hbBackground, lineWidth: 24)
+              .blur(radius: 12)
+              .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+          )
+
+        Text("Birch Wallet")
+          .font(.hbDisplay(34))
+          .foregroundStyle(Color.hbTextPrimary)
+
+        Spacer()
       }
+    }
   }
 }
 

@@ -103,7 +103,9 @@ private enum AppIconOption: String, CaseIterable, Identifiable {
   case light
   case dark
 
-  var id: String { rawValue }
+  var id: String {
+    rawValue
+  }
 
   /// Name passed to `UIApplication.setAlternateIconName`; `nil` selects the primary icon.
   var alternateIconName: String? {

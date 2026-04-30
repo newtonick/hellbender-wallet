@@ -1,5 +1,5 @@
-import Foundation
 @testable import birch
+import Foundation
 import Testing
 
 struct URServiceTests {

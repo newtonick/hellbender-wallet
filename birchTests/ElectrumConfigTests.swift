@@ -1,6 +1,6 @@
+@testable import birch
 import BitcoinDevKit
 import Foundation
-@testable import birch
 import Testing
 
 struct ElectrumConfigTests {

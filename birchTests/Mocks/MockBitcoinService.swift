@@ -1,5 +1,5 @@
-import Foundation
 @testable import birch
+import Foundation
 
 /// Configurable mock for testing ViewModels without BDK dependencies
 @MainActor

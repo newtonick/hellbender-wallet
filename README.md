@@ -203,7 +203,7 @@ fastlane/screenshots/
 
 ## Links
 
-- **Website**: [hellbenderwallet.com](https://hellbenderwallet.com)
+- **Website**: [birchwallet.app](https://birchwallet.app)
 - **TestFlight Beta**: [Join the beta](https://testflight.apple.com/join/PuHVwJDJ)
 - **Author**: [newtonick](https://github.com/newtonick/hellbender-wallet/)
 

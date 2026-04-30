@@ -27,11 +27,11 @@ platform :ios do
     FileUtils.rm_rf(File.expand_path("screenshots/light", __dir__))
 
     # ── 1. Build for testing once ────────────────────────────────────────
-    # Produces hellbender.app, hellbenderUITests-Runner.app, and the
+    # Produces birch.app, birchUITests-Runner.app, and the
     # .xctestrun manifest that tells xcodebuild which apps to install.
     sh("xcodebuild build-for-testing " \
-       "-scheme hellbender " \
-       "-project ../hellbender.xcodeproj " \
+       "-scheme birch " \
+       "-project ../birch.xcodeproj " \
        "-destination 'generic/platform=iOS Simulator' " \
        "-derivedDataPath '#{DERIVED_DATA}' " \
        "-parallel-testing-enabled NO " \
@@ -133,14 +133,14 @@ platform :ios do
       FileUtils.mkdir_p(SCREENSHOT_SRC)
 
       # Run the test with the explicit xctestrun manifest.
-      # This installs all DependentProductPaths (including hellbender.app)
+      # This installs all DependentProductPaths (including birch.app)
       # automatically — works around the Xcode 26 bug where
       # `xcodebuild build test` / `test-without-building -scheme` fail to
       # install the host app.
       sh("xcodebuild test-without-building " \
          "-xctestrun '#{xctestrun_path}' " \
          "-destination '#{destination}' " \
-         "-only-testing:hellbenderUITests/ScreenshotTests/testScreenshotTour " \
+         "-only-testing:birchUITests/ScreenshotTests/testScreenshotTour " \
          "-parallel-testing-enabled NO") do |status|
         UI.error("Test failed on #{name} (#{mode} mode)") unless status.success?
       end

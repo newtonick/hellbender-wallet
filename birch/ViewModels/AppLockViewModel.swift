@@ -18,6 +18,7 @@ final class AppLockViewModel {
   private(set) var failedAttempts: Int = 0
   private(set) var lockoutExpiry: Date?
   private var backgroundTime: Date?
+  private let keychain: KeychainStoring.Type
 
   // MARK: - Computed
 
@@ -47,9 +48,10 @@ final class AppLockViewModel {
 
   // MARK: - Init
 
-  init() {
-    hasPIN = KeychainHelper.load(forKey: Constants.keychainPINHashKey) != nil
-    if let data = KeychainHelper.load(forKey: Constants.keychainPINLengthKey),
+  init(keychain: KeychainStoring.Type = KeychainHelper.self) {
+    self.keychain = keychain
+    hasPIN = keychain.load(forKey: Constants.keychainPINHashKey) != nil
+    if let data = keychain.load(forKey: Constants.keychainPINLengthKey),
        let str = String(data: data, encoding: .utf8),
        let len = Int(str)
     {
@@ -102,7 +104,7 @@ final class AppLockViewModel {
       return false
     }
 
-    guard let storedHash = KeychainHelper.load(forKey: Constants.keychainPINHashKey) else {
+    guard let storedHash = keychain.load(forKey: Constants.keychainPINHashKey) else {
       return false
     }
 
@@ -138,8 +140,8 @@ final class AppLockViewModel {
   func setPIN(_ pin: String) {
     logger.info("PIN set (\(pin.count) digits)")
     let hash = hashPIN(pin)
-    KeychainHelper.save(hash, forKey: Constants.keychainPINHashKey)
-    KeychainHelper.save(Data("\(pin.count)".utf8), forKey: Constants.keychainPINLengthKey)
+    keychain.save(hash, forKey: Constants.keychainPINHashKey)
+    keychain.save(Data("\(pin.count)".utf8), forKey: Constants.keychainPINLengthKey)
     failedAttempts = 0
     persistFailedAttempts()
     lockoutExpiry = nil
@@ -150,10 +152,10 @@ final class AppLockViewModel {
 
   func removePIN() {
     logger.info("PIN removed")
-    KeychainHelper.delete(forKey: Constants.keychainPINHashKey)
-    KeychainHelper.delete(forKey: Constants.keychainPINLengthKey)
-    KeychainHelper.delete(forKey: Constants.keychainFailedAttemptsKey)
-    KeychainHelper.delete(forKey: Constants.keychainLockoutExpiryKey)
+    keychain.delete(forKey: Constants.keychainPINHashKey)
+    keychain.delete(forKey: Constants.keychainPINLengthKey)
+    keychain.delete(forKey: Constants.keychainFailedAttemptsKey)
+    keychain.delete(forKey: Constants.keychainLockoutExpiryKey)
     failedAttempts = 0
     lockoutExpiry = nil
     hasPIN = false
@@ -170,6 +172,15 @@ final class AppLockViewModel {
   }
 
   func handleForeground(timeout: Int) {
+    hasPIN = keychain.load(forKey: Constants.keychainPINHashKey) != nil
+    if let data = keychain.load(forKey: Constants.keychainPINLengthKey),
+       let str = String(data: data, encoding: .utf8),
+       let len = Int(str)
+    {
+      storedPINLength = len
+    } else {
+      storedPINLength = 6
+    }
     if let bgTime = backgroundTime {
       let elapsed = Int(Date().timeIntervalSince(bgTime))
       if elapsed >= timeout {
@@ -208,7 +219,7 @@ final class AppLockViewModel {
     }
 
     // Clear Keychain
-    KeychainHelper.deleteAll()
+    keychain.deleteAll()
 
     // Reset BitcoinService
     BitcoinService.shared.unloadWallet()
@@ -245,13 +256,13 @@ final class AppLockViewModel {
   }
 
   private func loadPersistedState() {
-    if let data = KeychainHelper.load(forKey: Constants.keychainFailedAttemptsKey),
+    if let data = keychain.load(forKey: Constants.keychainFailedAttemptsKey),
        let str = String(data: data, encoding: .utf8),
        let count = Int(str)
     {
       failedAttempts = count
     }
-    if let data = KeychainHelper.load(forKey: Constants.keychainLockoutExpiryKey),
+    if let data = keychain.load(forKey: Constants.keychainLockoutExpiryKey),
        let str = String(data: data, encoding: .utf8),
        let interval = Double(str)
     {
@@ -261,14 +272,14 @@ final class AppLockViewModel {
   }
 
   private func persistFailedAttempts() {
-    KeychainHelper.save(Data("\(failedAttempts)".utf8), forKey: Constants.keychainFailedAttemptsKey)
+    keychain.save(Data("\(failedAttempts)".utf8), forKey: Constants.keychainFailedAttemptsKey)
   }
 
   private func persistLockoutExpiry() {
     if let expiry = lockoutExpiry {
-      KeychainHelper.save(Data("\(expiry.timeIntervalSince1970)".utf8), forKey: Constants.keychainLockoutExpiryKey)
+      keychain.save(Data("\(expiry.timeIntervalSince1970)".utf8), forKey: Constants.keychainLockoutExpiryKey)
     } else {
-      KeychainHelper.delete(forKey: Constants.keychainLockoutExpiryKey)
+      keychain.delete(forKey: Constants.keychainLockoutExpiryKey)
     }
   }
 }

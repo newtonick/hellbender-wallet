@@ -1,7 +1,15 @@
 import Foundation
 import Security
 
-enum KeychainHelper {
+protocol KeychainStoring {
+  @discardableResult
+  static func save(_ data: Data, forKey key: String) -> Bool
+  static func load(forKey key: String) -> Data?
+  static func delete(forKey key: String)
+  static func deleteAll()
+}
+
+enum KeychainHelper: KeychainStoring {
   private static let service = Bundle.main.bundleIdentifier ?? "com.hellbender"
 
   @discardableResult

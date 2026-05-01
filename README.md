@@ -1,29 +1,29 @@
 <p align="center">
-  <img src="https://hellbenderwallet.com/assets/AppIcon-og.png" alt="Hellbender" width="128" height="128" style="border-radius: 24px;" />
+  <img src="https://birchwallet.app/assets/AppIcon-og.png" alt="Birch" width="128" height="128" style="border-radius: 24px;" />
 </p>
 
-<h1 align="center">Hellbender</h1>
+<h1 align="center">Birch</h1>
 
 <p align="center">
   <em>Travel to your private keys and leave your laptop at home.</em>
 </p>
 
 <p align="center">
-  <img src="https://hellbenderwallet.com/assets/screenshots/welcome.png" alt="Welcome" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/wallet-setup.png" alt="Setup Choice" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/multisig-config.png" alt="New Wallet Multisig Config" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/cosigner-import.png" alt="Cosigner Import" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/verify-wallet-top.png" alt="Verify Wallet" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/verify-wallet-backup.png" alt="Backup PDF/QR" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/transactions.png" alt="Transactions" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/send.png" alt="Send" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/receive.png" alt="Receive" width="150" />
-  <img src="https://hellbenderwallet.com/assets/screenshots/utxos.png" alt="UTXO" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/welcome.png" alt="Welcome" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/wallet-setup.png" alt="Setup Choice" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/multisig-config.png" alt="New Wallet Multisig Config" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/cosigner-import.png" alt="Cosigner Import" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/verify-wallet-top.png" alt="Verify Wallet" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/verify-wallet-backup.png" alt="Backup PDF/QR" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/transactions.png" alt="Transactions" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/send.png" alt="Send" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/receive.png" alt="Receive" width="150" />
+  <img src="https://birchwallet.app/assets/screenshots/utxos.png" alt="UTXO" width="150" />
 </p>
 
 ---
 
-Hellbender is an iOS Bitcoin multisig coordinator written in Swift. It operates as a **watch-only wallet** — private keys never touch your phone. Coordinate signing across air-gapped hardware wallets using animated QR codes, bringing cold storage security with mobile convenience.
+Birch is an iOS Bitcoin multisig coordinator written in Swift. It operates as a **watch-only wallet** — private keys never touch your phone. Coordinate signing across air-gapped hardware wallets using animated QR codes, bringing cold storage security with mobile convenience.
 
 ## Features
 
@@ -65,7 +65,7 @@ All dependencies are managed via Swift Package Manager and resolve automatically
    git clone https://github.com/newtonick/hellbender-wallet.git
    cd hellbender-wallet
    ```
-2. Open `hellbender.xcodeproj` in Xcode
+2. Open `birch.xcodeproj` in Xcode
 3. SPM dependencies resolve automatically on first open
 4. Build and run on a simulator or device
 
@@ -77,7 +77,7 @@ GitHub Actions runs `xcodebuild clean build analyze` on every push and pull requ
 
 ### Reproducible Builds
 
-Hellbender supports **functionally equivalent** reproducible builds. Given the same source code and Xcode version, two independent builds will produce the same compiled logic after normalization. Certain metadata bytes (Mach-O UUIDs, timestamps, build-machine identifiers) are expected to differ and are zeroed by the normalization step.
+Birch supports **functionally equivalent** reproducible builds. Given the same source code and Xcode version, two independent builds will produce the same compiled logic after normalization. Certain metadata bytes (Mach-O UUIDs, timestamps, build-machine identifiers) are expected to differ and are zeroed by the normalization step.
 
 **What IS reproducible** (after normalization): all code-bearing sections, resources, and application logic.
 
@@ -94,7 +94,7 @@ Hellbender supports **functionally equivalent** reproducible builds. Given the s
 ./scripts/build-release.sh
 ```
 
-This creates an unsigned archive at `/tmp/hellbender-build/hellbender.xcarchive`.
+This creates an unsigned archive at `/tmp/birch-build/birch.xcarchive`.
 
 #### Verifying two builds
 
@@ -111,7 +111,7 @@ The comparison exits 0 if the builds are functionally equivalent, 1 if code diff
 
 ## Generating Screenshots
 
-Hellbender uses [`fastlane snapshot`](https://docs.fastlane.tools/actions/snapshot/) to generate marketing and App Store screenshots. A single UI test walks the app from Welcome through the main tabs, capturing every major screen on each configured device in both dark and light mode.
+Birch uses [`fastlane snapshot`](https://docs.fastlane.tools/actions/snapshot/) to generate marketing and App Store screenshots. A single UI test walks the app from Welcome through the main tabs, capturing every major screen on each configured device in both dark and light mode.
 
 ### One-time setup
 
@@ -188,7 +188,7 @@ fastlane/screenshots/
 
 ### How it works
 
-- [`hellbenderUITests/ScreenshotTests.swift`](hellbenderUITests/ScreenshotTests.swift) is a dedicated XCUITest that walks the app. It reuses the existing `-UITesting` launch argument (defined in `hellbender/hellbenderApp.swift`), which wipes `UserDefaults`/keychain and uses an in-memory SwiftData store so every run starts from a deterministic Welcome screen.
+- [`birchUITests/ScreenshotTests.swift`](birchUITests/ScreenshotTests.swift) is a dedicated XCUITest that walks the app. It reuses the existing `-UITesting` launch argument (defined in `birch/birchApp.swift`), which wipes `UserDefaults`/keychain and uses an in-memory SwiftData store so every run starts from a deterministic Welcome screen.
 - The test imports a real testnet4 1-of-2 `wsh(sortedmulti(...))` descriptor with live history, waits for Electrum sync, then visits each screen.
 - Dark/light mode is driven by the simulator's OS appearance (`xcrun simctl ui ... appearance`). The app's `RootView` follows the OS when the theme is set to `.system`, which it is by default after the `-UITesting` wipe, so no app-side toggle is required.
 - The device matrix, scheme, status bar override, and other `snapshot` options live in [`fastlane/Snapfile`](fastlane/Snapfile). Device destinations (simulator OS version), the frameit pass, and the custom 13 mini ImageMagick composite all live in [`fastlane/Fastfile`](fastlane/Fastfile).
@@ -196,14 +196,14 @@ fastlane/screenshots/
 ### Customizing
 
 - **Add/remove devices:** edit both the `devices([...])` array in `fastlane/Snapfile` and the `DEVICES` hash in `fastlane/Fastfile`.
-- **Change which screens are captured:** edit `testScreenshotTour` in `hellbenderUITests/ScreenshotTests.swift` and add or remove `snapshot("NN-Name")` calls.
+- **Change which screens are captured:** edit `testScreenshotTour` in `birchUITests/ScreenshotTests.swift` and add or remove `snapshot("NN-Name")` calls.
 - **Skip framing:** remove the `frameit(...)` lines and the ImageMagick composite block (steps 4–7) from `fastlane/Fastfile` if you only need the bare PNGs.
 
 > **Known workaround** (contained in `fastlane/Fastfile`): `frameit` gem 2.232.2's bundled iPhone 13 Mini frame PNG has a ~3-pixel placement-offset bug that leaves a visible edge gap, so 13 mini is composited directly with ImageMagick instead. iPhone 16/17 device support is patched in via `scripts/patch-frameit.rb` (see setup step 4 above).
 
 ## Links
 
-- **Website**: [hellbenderwallet.com](https://hellbenderwallet.com)
+- **Website**: [birchwallet.app](https://birchwallet.app)
 - **TestFlight Beta**: [Join the beta](https://testflight.apple.com/join/PuHVwJDJ)
 - **Author**: [newtonick](https://github.com/newtonick/hellbender-wallet/)
 
@@ -211,5 +211,5 @@ fastlane/screenshots/
 
 MIT License — see [LICENSE](LICENSE) for details.
 
-Hellbender's dependencies use permissive licenses compatible with MIT:
+Birch's dependencies use permissive licenses compatible with MIT:
 bdk-swift (MIT/Apache-2.0), URKit (BSD-2-Clause-Patent), URUI (BSD-2-Clause-Patent), Bbqr (Apache-2.0).

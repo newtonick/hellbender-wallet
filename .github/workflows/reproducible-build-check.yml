@@ -23,12 +23,12 @@ jobs:
 
       - name: Build 1
         run: |
-          DERIVED_DATA="/tmp/hellbender-build-1"
+          DERIVED_DATA="/tmp/birch-build-1"
           rm -rf "$DERIVED_DATA"
           xcodebuild archive \
-            -scheme hellbender \
-            -project hellbender.xcodeproj \
-            -archivePath "$DERIVED_DATA/hellbender.xcarchive" \
+            -scheme birch \
+            -project birch.xcodeproj \
+            -archivePath "$DERIVED_DATA/birch.xcarchive" \
             -derivedDataPath "$DERIVED_DATA" \
             -configuration Release \
             CODE_SIGNING_ALLOWED=NO \
@@ -37,12 +37,12 @@ jobs:
 
       - name: Build 2
         run: |
-          DERIVED_DATA="/tmp/hellbender-build-2"
+          DERIVED_DATA="/tmp/birch-build-2"
           rm -rf "$DERIVED_DATA"
           xcodebuild archive \
-            -scheme hellbender \
-            -project hellbender.xcodeproj \
-            -archivePath "$DERIVED_DATA/hellbender.xcarchive" \
+            -scheme birch \
+            -project birch.xcodeproj \
+            -archivePath "$DERIVED_DATA/birch.xcarchive" \
             -derivedDataPath "$DERIVED_DATA" \
             -configuration Release \
             CODE_SIGNING_ALLOWED=NO \
@@ -51,13 +51,13 @@ jobs:
 
       - name: Normalize both builds
         run: |
-          APP1="/tmp/hellbender-build-1/hellbender.xcarchive/Products/Applications/hellbender.app"
-          APP2="/tmp/hellbender-build-2/hellbender.xcarchive/Products/Applications/hellbender.app"
+          APP1="/tmp/birch-build-1/birch.xcarchive/Products/Applications/birch.app"
+          APP2="/tmp/birch-build-2/birch.xcarchive/Products/Applications/birch.app"
           ./scripts/normalize-app.sh "$APP1"
           ./scripts/normalize-app.sh "$APP2"
 
       - name: Compare builds
         run: |
-          APP1="/tmp/hellbender-build-1/hellbender.xcarchive/Products/Applications/hellbender.app"
-          APP2="/tmp/hellbender-build-2/hellbender.xcarchive/Products/Applications/hellbender.app"
+          APP1="/tmp/birch-build-1/birch.xcarchive/Products/Applications/birch.app"
+          APP2="/tmp/birch-build-2/birch.xcarchive/Products/Applications/birch.app"
           ./scripts/compare-builds.sh "$APP1" "$APP2"

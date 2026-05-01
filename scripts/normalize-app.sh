@@ -6,11 +6,11 @@ set -euo pipefail
 # signatures, temp paths) so that two builds from the same source produce identical
 # normalized output.
 #
-# Usage: ./scripts/normalize-app.sh <path/to/hellbender.app>
+# Usage: ./scripts/normalize-app.sh <path/to/birch.app>
 #
 # Operates in-place on the .app bundle. Make a copy first if you need the original.
 
-APP_PATH="${1:?Usage: normalize-app.sh <path/to/hellbender.app>}"
+APP_PATH="${1:?Usage: normalize-app.sh <path/to/birch.app>}"
 
 if [ ! -d "$APP_PATH" ]; then
   echo "Error: $APP_PATH is not a directory" >&2

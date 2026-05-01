@@ -211,6 +211,105 @@ struct DescriptorTests {
     #expect(desc.contains("[73c5da0a/48'/1'/0'/2']"), "Should contain cosigner fingerprint/path")
   }
 
+  // MARK: - SLIP132 Vpub/Zpub normalization
+
+  /// Cosigners as they might be entered by the user — first one is in SLIP132
+  /// `Vpub` format (BIP-84 wsh testnet), the other two are standard `tpub`.
+  /// BDK's descriptor parser only accepts `xpub`/`tpub`, so the descriptor
+  /// builder must normalize the `Vpub` to `tpub` before assembly.
+  private static let mixedFormatCosigners: [(xpub: String, fingerprint: String, derivationPath: String)] = [
+    (xpub: "Vpub5kv6Y3xqGFyhZQyCz8LzaSwVzAJLJTvHcUewWAhrLRRRjZeYs53qrfspVEBKZw6rvwGy8Z1ef7e7Vzsu3BLF6MkjFXWnLpmftKQT1Eub5Cf",
+     fingerprint: "d03ce438", derivationPath: "m/48'/1'/0'/2'"),
+    (xpub: "tpubDE2JvCZ3g8tEX3yegvXFn9cpzUyA2EEg6EwS7sAHcPER9yA6nFKdGPyLzsswYWa3SvEbKFmUiyFe9QQrpVpKwxojCud4ThNEv8R3j411Lcs",
+     fingerprint: "f9755e5b", derivationPath: "m/48'/1'/0'/2'"),
+    (xpub: "tpubDFEegnzQJr8LdYmGh1dGy3vqVgWtZ5w6q2cw4fbXhp15A29hvpf4NtAeFNvmmDRFTzeu1CveXs6dK2iPVADn2fSXWAQhHZhtLRGeHLmiBi5",
+     fingerprint: "acc95047", derivationPath: "m/48'/1'/0'/2'"),
+  ]
+
+  /// The expected `tpub` form of the `Vpub` from `mixedFormatCosigners[0]`.
+  private static let convertedTpub =
+    "tpubDE4AYPPuhwTk7ENvANSMNU84wRecxjikg4e1WFHE4a6fxsNogCqnA7zzxyDoXp93JeyWNViXEKnkqaysaCrZRnTZDLYXnmbt7zrGxWYc3Mx"
+
+  @Test func combinedDescriptorNormalizesVpubToTpub() {
+    let desc = BitcoinService.buildCombinedDescriptor(
+      requiredSignatures: 2,
+      cosigners: Self.mixedFormatCosigners,
+      network: .testnet4
+    )
+
+    // No SLIP132-tagged keys should remain in the assembled descriptor.
+    #expect(!desc.contains("Vpub"), "Descriptor should not contain SLIP132 Vpub keys after normalization")
+    #expect(!desc.contains("Zpub"), "Descriptor should not contain SLIP132 Zpub keys after normalization")
+
+    // The converted tpub from the original Vpub must be present, paired with
+    // the cosigner's original fingerprint.
+    #expect(desc.contains(Self.convertedTpub), "Vpub should normalize to expected tpub: \(Self.convertedTpub)")
+    #expect(desc.contains("[d03ce438/48'/1'/0'/2']\(Self.convertedTpub)"), "Converted tpub should retain the original fingerprint/origin")
+  }
+
+  @Test func singleChainDescriptorNormalizesVpubToTpub() {
+    let external = BitcoinService.buildDescriptor(
+      requiredSignatures: 2,
+      cosigners: Self.mixedFormatCosigners,
+      network: .testnet4,
+      isChange: false
+    )
+
+    #expect(!external.contains("Vpub"), "External descriptor should not contain Vpub")
+    #expect(external.contains(Self.convertedTpub), "External descriptor should contain the converted tpub")
+  }
+
+  @Test func descriptorBuiltFromMixedFormatsMatchesAllTpubVersion() {
+    // Building the descriptor from the Vpub-mixed list should produce the same
+    // result as building it from the equivalent all-tpub list — proving the
+    // SLIP132 input is fully normalized away.
+    let allTpubCosigners: [(xpub: String, fingerprint: String, derivationPath: String)] = [
+      (xpub: Self.convertedTpub, fingerprint: "d03ce438", derivationPath: "m/48'/1'/0'/2'"),
+      Self.mixedFormatCosigners[1],
+      Self.mixedFormatCosigners[2],
+    ]
+
+    let fromMixed = BitcoinService.buildCombinedDescriptor(
+      requiredSignatures: 2,
+      cosigners: Self.mixedFormatCosigners,
+      network: .testnet4
+    )
+    let fromAllTpub = BitcoinService.buildCombinedDescriptor(
+      requiredSignatures: 2,
+      cosigners: allTpubCosigners,
+      network: .testnet4
+    )
+
+    #expect(fromMixed == fromAllTpub, "Descriptor built from Vpub+tpub mix should equal all-tpub descriptor")
+  }
+
+  @Test func descriptorSortsByNormalizedXpubForBIP67() {
+    // The user-supplied example: cosigners entered in [Vpub, tpub, tpub] order
+    // with fingerprints [d03ce438, f9755e5b, acc95047]. After normalization,
+    // BIP67 lexicographic sort by tpub puts them in this fingerprint order:
+    //   1. f9755e5b  (tpubDE2JvCZ3g8tEX...)
+    //   2. d03ce438  (tpubDE4AYPPuhwTk7... — converted from Vpub)
+    //   3. acc95047  (tpubDFEegnzQJr8L...)
+    let desc = BitcoinService.buildCombinedDescriptor(
+      requiredSignatures: 2,
+      cosigners: Self.mixedFormatCosigners,
+      network: .testnet4
+    )
+
+    let fp1 = desc.range(of: "[f9755e5b/48'/1'/0'/2']")
+    let fp2 = desc.range(of: "[d03ce438/48'/1'/0'/2']")
+    let fp3 = desc.range(of: "[acc95047/48'/1'/0'/2']")
+
+    #expect(fp1 != nil, "Descriptor should contain f9755e5b key origin")
+    #expect(fp2 != nil, "Descriptor should contain d03ce438 key origin")
+    #expect(fp3 != nil, "Descriptor should contain acc95047 key origin")
+
+    if let fp1, let fp2, let fp3 {
+      #expect(fp1.lowerBound < fp2.lowerBound, "f9755e5b (tpubDE2J...) should sort before d03ce438 (tpubDE4A...)")
+      #expect(fp2.lowerBound < fp3.lowerBound, "d03ce438 (tpubDE4A...) should sort before acc95047 (tpubDFEe...)")
+    }
+  }
+
   /// Real descriptor decoded from a known-good crypto-output UR (from URServiceTests)
   private func realURDescriptor() -> String? {
     let urString = "UR:CRYPTO-OUTPUT/TAADMETAADMSOEADADAOLFTAADDLOSAOWKAXHDCLAOPDFNLNESAXHSJOFTVWFWHPTDUYPYHSROVLSWVDSRVWKBNNECZTHYMOURGSFDVDVAAAHDCXGMDKHPWMZTLRSOBSMWIOBWFWRPTODKNSEYAMTAHKRKQDISJTGWNSTSSFQDKPZSVTAHTAADEHOEADAEAOADAMTAADDYOTADLOCSDYYKADYKAEYKAOYKAOCYDYOTJEGMAXAAAYCYOYJNLKZMASJZGUIHIHIEGUINIOJTIHJPCXEYTAADDLOSAOWKAXHDCLAXIYMYFYWEMKASIOVSFYFDFDVASWONMTSKURSSTDMHVWSKLEAMKOVSGSDSCNSGNDOEAAHDCXBAMHFTFLGSDTBGBGFGGUREENGLFYTSHSCEJNKPHGGLFDFMTEWLENBDBBOXDYEMWTAHTAADEHOEADAEAOADAMTAADDYOTADLOCSDYYKADYKAEYKAOYKAOCYKNBWOSPAAXAAAYCYGRFPNSJOASJZGUIHIHIEGUINIOJTIHJPCXEHDLSWWZMD"

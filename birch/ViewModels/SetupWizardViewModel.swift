@@ -193,13 +193,17 @@ final class SetupWizardViewModel {
   func buildDescriptors() {
     guard allCosignersComplete else { return }
 
-    // Build key origin strings and sort by xpub (BIP67 lexicographic sort)
+    // Build key origin strings — normalize to standard xpub/tpub format before
+    // sorting so BIP67 ordering matches what's emitted in the descriptor.
+    let isTestnet = network != .mainnet
     var keyEntries: [(origin: String, xpub: String, fingerprint: String, path: String, label: String, index: Int)] = []
 
     for i in 0 ..< totalCosigners {
+      let raw = cosignerXpubs[i].trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+      let normalized = URService.normalizeXpub(raw, isTestnet: isTestnet) ?? raw
       keyEntries.append((
         origin: "[\(cosignerFingerprints[i])/48'/\(network.coinType)'/0'/2']",
-        xpub: cosignerXpubs[i],
+        xpub: normalized,
         fingerprint: cosignerFingerprints[i],
         path: cosignerDerivationPaths[i],
         label: cosignerLabels[i],
@@ -211,12 +215,10 @@ final class SetupWizardViewModel {
     keyEntries.sort { $0.xpub < $1.xpub }
 
     let externalKeys = keyEntries.map {
-      let xpub = $0.xpub.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-      return "\($0.origin)\(xpub)/0/*"
+      "\($0.origin)\($0.xpub)/0/*"
     }.joined(separator: ",")
     let internalKeys = keyEntries.map {
-      let xpub = $0.xpub.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-      return "\($0.origin)\(xpub)/1/*"
+      "\($0.origin)\($0.xpub)/1/*"
     }.joined(separator: ",")
 
     externalDescriptor = "wsh(sortedmulti(\(requiredSignatures),\(externalKeys)))"

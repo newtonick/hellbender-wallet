@@ -1333,12 +1333,18 @@ final class BitcoinService {
   ) -> String {
     let chain = isChange ? "1" : "0"
     let coinType = network.coinType
+    let isTestnet = network != .mainnet
 
-    let sorted = cosigners.sorted { $0.xpub < $1.xpub }
+    let normalized = cosigners.map { cosigner -> (xpub: String, fingerprint: String, derivationPath: String) in
+      let raw = cosigner.xpub.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+      let xpub = URService.normalizeXpub(raw, isTestnet: isTestnet) ?? raw
+      return (xpub: xpub, fingerprint: cosigner.fingerprint, derivationPath: cosigner.derivationPath)
+    }
+
+    let sorted = normalized.sorted { $0.xpub < $1.xpub }
 
     let keys = sorted.map { cosigner in
-      let xpub = cosigner.xpub.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-      return "[\(cosigner.fingerprint)/48'/\(coinType)'/0'/2']\(xpub)/\(chain)/*"
+      "[\(cosigner.fingerprint)/48'/\(coinType)'/0'/2']\(cosigner.xpub)/\(chain)/*"
     }.joined(separator: ",")
 
     return "wsh(sortedmulti(\(requiredSignatures),\(keys)))"
@@ -1351,11 +1357,20 @@ final class BitcoinService {
     network: BitcoinNetwork
   ) -> String {
     let coinType = network.coinType
-    let sorted = cosigners.sorted { $0.xpub < $1.xpub }
+    let isTestnet = network != .mainnet
+
+    // Normalize each cosigner xpub to standard xpub/tpub format (BDK descriptor
+    // parser does not accept SLIP132-tagged Vpub/Zpub/Ypub/Upub keys).
+    let normalized = cosigners.map { cosigner -> (xpub: String, fingerprint: String, derivationPath: String) in
+      let raw = cosigner.xpub.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+      let xpub = URService.normalizeXpub(raw, isTestnet: isTestnet) ?? raw
+      return (xpub: xpub, fingerprint: cosigner.fingerprint, derivationPath: cosigner.derivationPath)
+    }
+
+    let sorted = normalized.sorted { $0.xpub < $1.xpub }
 
     let keys = sorted.map { cosigner in
-      let xpub = cosigner.xpub.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-      return "[\(cosigner.fingerprint)/48'/\(coinType)'/0'/2']\(xpub)/<0;1>/*"
+      "[\(cosigner.fingerprint)/48'/\(coinType)'/0'/2']\(cosigner.xpub)/<0;1>/*"
     }.joined(separator: ",")
 
     let raw = "wsh(sortedmulti(\(requiredSignatures),\(keys)))"
